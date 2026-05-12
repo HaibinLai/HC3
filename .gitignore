@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Data is reproducible/downloaded and can become large.
+data/**
+!data/.gitkeep
+!data/raw/
+!data/raw/.gitkeep
+!data/processed/
+!data/processed/.gitkeep
+
+# Generated artifacts.
+figures/**
+!figures/.gitkeep
+models/**
+!models/.gitkeep
+
+# Local/course files.
+*.pdf
+.DS_Store
