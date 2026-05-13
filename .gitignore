@@ -14,6 +14,7 @@ data/**
 # Generated artifacts.
 figures/**
 !figures/.gitkeep
+!figures/*.png
 models/**
 !models/.gitkeep
 
