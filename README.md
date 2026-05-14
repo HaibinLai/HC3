@@ -328,7 +328,107 @@ Logistic Regression 标准化系数的 Top-20。正系数指向 ChatGPT，负系
 
 ---
 
-## 8. Key Findings
+## 8. Advanced Detection Methods
+
+除了手工特征 + 传统分类器，本项目还实现了三种最新的 AI 文本检测方法，
+覆盖三个不同的技术范式。
+
+### 8.1 Method Overview
+
+| 方法 | 范式 | 是否需要训练 | 论文 |
+|---|---|---|---|
+| XGBoost (90 features) | 手工特征 + 传统 ML | 有监督 | — |
+| RoBERTa fine-tune | 预训练模型微调 | 有监督 | Liu et al., 2019 |
+| Fast-DetectGPT | 零样本概率曲率 | 无需训练 | Bao et al., ICLR 2024 |
+| Binoculars | 零样本双模型对比 | 无需训练 | Hans et al., ICML 2024 |
+
+### 8.2 RoBERTa Fine-tune
+
+在 HC3 上 fine-tune `roberta-base` (125M params) 做二分类。模型直接从
+原始文本学习判别特征，不需要手工设计特征。
+
+**架构**：RoBERTa encoder → [CLS] embedding (768d) → Dropout(0.1) → Linear(768, 2) → softmax
+
+**训练配置**：3 epochs, batch size 32, lr 2e-5 (AdamW), FP16, A100 GPU
+
+### 8.3 Fast-DetectGPT
+
+Fast-DetectGPT 的核心观察：**AI 生成文本处于语言模型概率曲面的局部极大值附近**。
+
+对每个位置 $t$，从模型的条件分布中采样一个替代 token $\hat{x}_t$，然后比较
+原始 token 与采样 token 的对数概率差异：
+
+$$\tilde{d}(x) = \frac{\frac{1}{T}\sum_t [\log p_\theta(x_t \mid x_{<t}) - \log p_\theta(\hat{x}_t \mid x_{<t})]}{\sigma}$$
+
+如果原始 token 的概率始终远高于随机采样的 token（分数大），说明原文处于
+概率峰值，更可能是 AI 生成的。
+
+**评分模型**：GPT-2 medium
+
+### 8.4 Binoculars
+
+Binoculars 使用两个不同的语言模型计算同一文本的交叉熵比值：
+
+$$B(x) = \frac{H_{M_1}(x)}{H_{M_2}(x)}$$
+
+核心假设：AI 生成的文本在任何相似 LLM 下都表现"正常"（低交叉熵），
+因此两个模型的交叉熵比值接近 1；而人类文本在不同模型间的交叉熵差异更大。
+
+**模型对**：GPT-2 medium (observer) / GPT-2 large (performer)
+
+**注**：论文原文使用 7B 级别模型对（如 Falcon-7b / Falcon-7b-instruct），
+效果更好。本实验使用 GPT-2 medium/large 作为轻量级复现，两个模型过于
+相似导致比值信号较弱。单模型 CE 的 AUC (0.9891) 远高于比值 (0.7995)。
+
+### 8.5 All Methods Comparison
+
+| Method | Type | Training | ROC AUC | Accuracy | Short-text AUC (<100w) |
+|---|---|---|---:|---:|---:|
+| **XGBoost (90 feat)** | 手工特征 | 有监督 | **0.9999** | **0.9964** | **0.9995** |
+| LR (90 feat) | 手工特征 | 有监督 | 0.9984 | 0.9898 | — |
+| RoBERTa fine-tune | 深度学习 | 有监督 | 0.9980 | 0.9748 | 0.9965 |
+| Baseline LR (17 feat + TF-IDF) | 手工特征 | 有监督 | 0.9955 | 0.97 | — |
+| Fast-DetectGPT | 零样本 | 无 | 0.9292 | 0.8954 | 0.9048 |
+| Binoculars (GPT-2 pair) | 零样本 | 无 | 0.7995 | 0.8141 | 0.7855 |
+| Single-model CE (GPT-2 medium) | 统计 | 无 | 0.9891 | — | — |
+
+### 8.6 Analysis
+
+**有监督方法大幅领先零样本方法**。XGBoost (AUC 0.9999) 和 RoBERTa (0.9980)
+在 HC3 数据集上都接近完美分类，而零样本方法 Fast-DetectGPT (0.9292) 和
+Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内数据上总是更强。
+
+**零样本方法的价值在于泛化**。它们不依赖训练数据，理论上对未见过的 LLM
+（如 GPT-4、Claude）仍然有效，而有监督模型可能需要重新训练。
+
+**GPT-2 perplexity 仍是最有信息量的单一信号**。单模型 CE AUC 达到 0.9891，
+与 90 个手工特征的 LR (0.9984) 差距不大，说明 AI 文本的概率分布特征是
+最本质的判别信号。
+
+**Binoculars 在 GPT-2 级别模型上效果不佳**。GPT-2 medium 和 large 架构
+太相似，交叉熵比值缺乏区分度。需要差异更大的模型对（如 base/instruct）
+才能发挥 Binoculars 的优势。
+
+**短文本是零样本方法的弱点**。Fast-DetectGPT 的短文本 AUC 降至 0.9048，
+而 XGBoost (0.9995) 和 RoBERTa (0.9965) 几乎不受影响。
+
+### 8.7 Advanced Method Figures
+
+#### Fast-DetectGPT Score Distribution
+
+![DetectGPT analysis](figures/detectgpt_analysis.png)
+
+#### Binoculars Score Distribution
+
+![Binoculars analysis](figures/binoculars_analysis.png)
+
+#### RoBERTa Confusion Matrix
+
+![RoBERTa confusion matrix](figures/confusion_matrix_roberta.png)
+
+---
+
+## 9. Key Findings
 
 1. **GPT-2 困惑度是最强的单一特征类别**。仅凭 perplexity + log_perplexity 两个特征即可达到 AUC 0.9912，因为 AI 生成文本天然更符合语言模型的概率分布。
 
