@@ -44,9 +44,9 @@ medicine (2,582)、wiki_csai (1,684)。
 
 | 特征 | 公式 | 含义 |
 |---|---|---|
-| `avg_word_len` | $\frac{\sum_{i=1}^{N} \text{len}(w_i)}{N}$ | 平均词长。较长的平均词长通常意味着使用了更专业或更正式的词汇。 |
-| `avg_sentence_len` | $\frac{\text{word\_count}}{\text{sentence\_count}}$ | 平均句长（词/句）。ChatGPT 倾向于生成更长、更完整的句子。 |
-| `avg_paragraph_len` | $\frac{\text{word\_count}}{\text{paragraph\_count}}$ | 平均段落长度（词/段）。反映文本的组织粒度。 |
+| `avg_word_len` | $\frac{\sum_{i=1}^{N} \lvert w_i \rvert}{N}$，其中 $\lvert w_i \rvert$ 为第 $i$ 个词的字母数 | 平均词长。较长的平均词长通常意味着使用了更专业或更正式的词汇。 |
+| `avg_sentence_len` | $\frac{W}{S}$，其中 $W$ 为词数，$S$ 为句数 | 平均句长（词/句）。ChatGPT 倾向于生成更长、更完整的句子。 |
+| `avg_paragraph_len` | $\frac{W}{P}$，其中 $W$ 为词数，$P$ 为段落数 | 平均段落长度（词/段）。反映文本的组织粒度。 |
 
 ### 2.3 Variability (4 features)
 
@@ -54,7 +54,7 @@ medicine (2,582)、wiki_csai (1,684)。
 
 | 特征 | 公式 | 含义 |
 |---|---|---|
-| `word_len_std` | $\sigma(\text{len}(w_1), \text{len}(w_2), \dots)$ | 词长标准差。人类写作中词长变化更大，AI 倾向使用长度均匀的词。 |
+| `word_len_std` | $\sigma(\lvert w_1 \rvert, \lvert w_2 \rvert, \dots)$ | 词长标准差。人类写作中词长变化更大，AI 倾向使用长度均匀的词。 |
 | `sentence_len_std` | $\sigma(s_1, s_2, \dots)$，其中 $s_i$ 为第 $i$ 个句子的词数 | 句长标准差。值越大表示句子长短交错越明显。 |
 | `max_sentence_len` | $\max(s_1, s_2, \dots)$ | 最长句子的词数。 |
 | `min_sentence_len` | $\min(s_1, s_2, \dots)$ | 最短句子的词数。 |
@@ -65,9 +65,9 @@ medicine (2,582)、wiki_csai (1,684)。
 
 | 特征 | 公式 | 含义 |
 |---|---|---|
-| `type_token_ratio` | $\text{TTR} = \frac{V}{N}$，其中 $V$ 为不同词数（types），$N$ 为总词数（tokens） | 词型-词例比。值越高说明词汇越丰富。人类文本通常有更高的 TTR。 |
+| `type_token_ratio` | $\mathrm{TTR} = \frac{V}{N}$，其中 $V$ 为不同词数（types），$N$ 为总词数（tokens） | 词型-词例比。值越高说明词汇越丰富。人类文本通常有更高的 TTR。 |
 | `hapax_legomena_ratio` | $\frac{V_1}{N}$，其中 $V_1$ 为只出现一次的词数 | Hapax 比率。只出现一次的词占总词数的比例，反映用词的独特性。 |
-| `long_word_ratio` | $\frac{\\#\{w : \text{len}(w) \geq 6\}}{N}$ | 长词比例（6 个字母及以上）。 |
+| `long_word_ratio` | $\frac{\lvert \{w : \lvert w \rvert \geq 6\} \rvert}{N}$ | 长词比例（6 个字母及以上）。 |
 | `yules_k` | $K = 10^4 \cdot \frac{\sum_{i=1}^{m} i^2 V_i - N}{N^2}$，其中 $V_i$ 为出现 $i$ 次的词的数量 | Yule's K 常数。值越大表示词汇重复程度越高（多样性越低）。该指标对文本长度较不敏感。 |
 | `simpsons_diversity` | $D = 1 - \frac{\sum_{i} n_i(n_i - 1)}{N(N-1)}$，其中 $n_i$ 为第 $i$ 个词型的频次 | Simpson 多样性指数。值越接近 1 表示多样性越高。 |
 | `brunet_w` | $W = N^{V^{-0.172}}$ | Brunet's W。值越大表示词汇越贫乏。相比 TTR，该指标对文本长度更稳健。 |
@@ -78,16 +78,16 @@ medicine (2,582)、wiki_csai (1,684)。
 
 | 特征 | 公式 | 含义 |
 |---|---|---|
-| `stopword_ratio` | $\frac{\\#\text{stopwords}}{N}$ | 停用词比例。停用词集包含 the, is, at 等 30 个高频功能词。 |
-| `punct_ratio` | $\frac{\\#\text{punctuation}}{\\#\text{chars}}$ | 标点符号占总字符的比例。 |
-| `comma_ratio` | $\frac{\\#\text{commas}}{\\#\text{chars}}$ | 逗号密度。ChatGPT 倾向使用更多逗号来连接复杂句。 |
-| `semicolon_ratio` | $\frac{\\#\text{semicolons}}{\\#\text{chars}}$ | 分号密度。 |
-| `question_ratio` | $\frac{\\#\text{question marks}}{\\#\text{chars}}$ | 问号密度。人类回答中更常出现反问。 |
-| `exclamation_ratio` | $\frac{\\#\text{exclamation marks}}{\\#\text{chars}}$ | 感叹号密度。人类文本中情感表达更丰富。 |
-| `colon_ratio` | $\frac{\\#\text{colons}}{\\#\text{chars}}$ | 冒号密度。ChatGPT 常用冒号引出列表或解释。 |
-| `parenthesis_ratio` | $\frac{\\#\text{parentheses}}{\\#\text{chars}}$ | 括号密度。ChatGPT 更频繁使用括号补充说明。 |
-| `uppercase_ratio` | $\frac{\\#\text{uppercase letters}}{\\#\text{alpha chars}}$ | 大写字母占比。 |
-| `digit_ratio` | $\frac{\\#\text{digits}}{\\#\text{chars}}$ | 数字字符占比。 |
+| `stopword_ratio` | $N_{\mathrm{stop}} / N$ | 停用词比例。停用词集包含 the, is, at 等 30 个高频功能词。 |
+| `punct_ratio` | $N_{\mathrm{punct}} / C$ | 标点符号占总字符的比例。 |
+| `comma_ratio` | $N_{\mathrm{comma}} / C$ | 逗号密度。ChatGPT 倾向使用更多逗号来连接复杂句。 |
+| `semicolon_ratio` | $N_{\mathrm{semicolon}} / C$ | 分号密度。 |
+| `question_ratio` | $N_{?} / C$ | 问号密度。人类回答中更常出现反问。 |
+| `exclamation_ratio` | $N_{!} / C$ | 感叹号密度。人类文本中情感表达更丰富。 |
+| `colon_ratio` | $N_{\mathrm{colon}} / C$ | 冒号密度。ChatGPT 常用冒号引出列表或解释。 |
+| `parenthesis_ratio` | $N_{\mathrm{paren}} / C$ | 括号密度。ChatGPT 更频繁使用括号补充说明。 |
+| `uppercase_ratio` | $N_{\mathrm{upper}} / N_{\mathrm{alpha}}$ | 大写字母占比。 |
+| `digit_ratio` | $N_{\mathrm{digit}} / C$ | 数字字符占比。 |
 
 ### 2.6 Structure (4 features)
 
@@ -95,10 +95,10 @@ medicine (2,582)、wiki_csai (1,684)。
 
 | 特征 | 公式 | 含义 |
 |---|---|---|
-| `transition_per_100w` | $\frac{\\#\text{transition phrases} \times 100}{N}$ | 每 100 词中的过渡短语数量。过渡词包括 "however", "moreover", "in conclusion" 等 23 个短语。ChatGPT 显著更多使用过渡词。 |
+| `transition_per_100w` | $\frac{N_{\mathrm{trans}} \times 100}{N}$ | 每 100 词中的过渡短语数量。过渡词包括 "however", "moreover", "in conclusion" 等 23 个短语。ChatGPT 显著更多使用过渡词。 |
 | `bullet_point_count` | 匹配 `^\s*[-*]\s` 的行数 | 列表项（bullet point）数量。AI 文本更倾向于使用列表来组织回答。 |
 | `number_count` | 匹配 `\d+` 的数量 | 文本中数字的出现次数。 |
-| `repeated_3gram_ratio` | $\frac{\\#\{g : \text{freq}(g) > 1\}}{\\#\text{total 3-grams}}$ | 重复三元组比例。出现超过 1 次的 3-gram 占总 3-gram 的比例。AI 文本更容易产生重复的短语模式。 |
+| `repeated_3gram_ratio` | $\frac{\lvert \{g : f(g) > 1\} \rvert}{\lvert G \rvert}$，其中 $G$ 为所有 3-gram 集合 | 重复三元组比例。出现超过 1 次的 3-gram 占总 3-gram 的比例。AI 文本更容易产生重复的短语模式。 |
 
 ### 2.7 Readability (7 features)
 
@@ -111,7 +111,7 @@ medicine (2,582)、wiki_csai (1,684)。
 | `gunning_fog` | $0.4 \cdot \left(\frac{N}{S} + 100 \cdot \frac{C}{N}\right)$，其中 $C$ 为复杂词数（3+ 音节） | Gunning Fog 指数。估计理解文本所需的正规教育年限。 |
 | `smog_index` | $3 + \sqrt{\frac{C \times 30}{S}}$ | SMOG 指数。基于多音节词的比例，估计理解文本所需的教育年限。 |
 | `coleman_liau_index` | $0.0588L - 0.296S' - 15.8$，其中 $L$ 为每 100 词的平均字母数，$S'$ 为每 100 词的平均句子数 | Coleman-Liau 指数。仅依赖字符和句子计数，不需要音节分析。 |
-| `automated_readability_index` | $4.71 \cdot \frac{\\#\text{chars}}{N} + 0.5 \cdot \frac{N}{S} - 21.43$ | ARI 自动可读性指数。对应理解文本所需的年级水平。在本实验中 LR 系数最大，是区分人类与 AI 文本最强的单一可读性特征。 |
+| `automated_readability_index` | $4.71 \cdot \frac{C}{N} + 0.5 \cdot \frac{N}{S} - 21.43$，其中 $C$ 为字符数 | ARI 自动可读性指数。对应理解文本所需的年级水平。在本实验中 LR 系数最大，是区分人类与 AI 文本最强的单一可读性特征。 |
 | `dale_chall_score` | 基于 Dale-Chall 3000 常用词表，统计"困难词"比例并加权计算 | Dale-Chall 可读性分数。使用常用词表判定困难词，分数越高文本越难。 |
 
 ### 2.8 Semantic Embedding (50 features)
@@ -128,8 +128,8 @@ medicine (2,582)、wiki_csai (1,684)。
 
 | 特征 | 公式 | 含义 |
 |---|---|---|
-| `gpt2_perplexity` | $\text{PPL} = \exp\left(-\frac{1}{T}\sum_{t=1}^{T} \log P(x_t \mid x_{<t})\right)$ | GPT-2 困惑度。衡量 GPT-2 模型对文本的"惊讶程度"。**AI 生成文本的困惑度显著低于人类文本**，因为 AI 输出更符合语言模型的概率分布。该特征是消融实验中单组最强的特征（仅 2 个特征即达 AUC 0.9912）。 |
-| `log_perplexity` | $\log(1 + \text{PPL})$ | 对数困惑度。对原始困惑度取 log 变换以压缩极端值，使分布更接近正态。 |
+| `gpt2_perplexity` | $\mathrm{PPL} = \exp\left(-\frac{1}{T}\sum_{t=1}^{T} \log P(x_t \mid x_{<t})\right)$ | GPT-2 困惑度。衡量 GPT-2 模型对文本的"惊讶程度"。**AI 生成文本的困惑度显著低于人类文本**，因为 AI 输出更符合语言模型的概率分布。该特征是消融实验中单组最强的特征（仅 2 个特征即达 AUC 0.9912）。 |
+| `log_perplexity` | $\log(1 + \mathrm{PPL})$ | 对数困惑度。对原始困惑度取 log 变换以压缩极端值，使分布更接近正态。 |
 
 ---
 
@@ -137,7 +137,7 @@ medicine (2,582)、wiki_csai (1,684)。
 
 ### 3.1 ROC AUC (Area Under the Receiver Operating Characteristic Curve)
 
-$$\text{AUC} = \int_0^1 \text{TPR}(t) \, d(\text{FPR}(t))$$
+$$\mathrm{AUC} = \int_0^1 \mathrm{TPR}(t) \, d(\mathrm{FPR}(t))$$
 
 ROC 曲线以假阳性率（FPR）为横轴、真阳性率（TPR）为纵轴，AUC 为其下面积。
 AUC = 1.0 表示完美分类，AUC = 0.5 表示随机猜测。AUC 对类别不平衡具有鲁棒性，
@@ -145,25 +145,25 @@ AUC = 1.0 表示完美分类，AUC = 0.5 表示随机猜测。AUC 对类别不�
 
 ### 3.2 Accuracy
 
-$$\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}$$
+$$\mathrm{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}$$
 
 准确率，所有预测正确的样本占总样本的比例。直观但在类别不平衡时可能产生误导。
 
 ### 3.3 Precision
 
-$$\text{Precision} = \frac{TP}{TP + FP}$$
+$$\mathrm{Precision} = \frac{TP}{TP + FP}$$
 
 精确率，预测为正类的样本中有多少确实为正类。高 Precision 意味着较少的误报。
 
 ### 3.4 Recall
 
-$$\text{Recall} = \frac{TP}{TP + FN}$$
+$$\mathrm{Recall} = \frac{TP}{TP + FN}$$
 
 召回率，实际正类中有多少被成功识别。高 Recall 意味着较少的漏检。
 
 ### 3.5 F1 Score
 
-$$F_1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
+$$F_1 = 2 \cdot \frac{\mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} + \mathrm{Recall}}$$
 
 F1 是 Precision 和 Recall 的调和平均数，在两者之间取得平衡。当类别不平衡
 时，F1 比 Accuracy 更具参考价值。
