@@ -2,90 +2,381 @@
 
 方向一：AI 生成文本的特征挖掘与检测
 
-This project starts with the HC3 dataset and builds an interpretable,
-CPU-friendly baseline for human-vs-ChatGPT text classification. The first
-baseline is intentionally simple: linguistic/statistical features plus TF-IDF,
-so the model behavior can be discussed in a data mining report.
+本项目基于 HC3 (Human ChatGPT Comparison Corpus) 数据集，构建可解释的
+人类文本 vs ChatGPT 文本二分类系统。从浅层统计特征到深层语义嵌入，系统
+地挖掘 AI 生成文本的可量化信号，并通过 SHAP 归因分析提供模型可解释性。
 
-## Current Result
+## 1. Dataset
 
-Full HC3 baseline:
+HC3 数据集来自 Hugging Face (`Hello-SimpleAI/HC3`)，包含同一问题下的人类
+回答和 ChatGPT 回答。
 
-| Metric | Result |
+| 统计项 | 数值 |
 |---|---:|
-| Rows | 85,431 |
+| 原始问题数 | 24,322 |
+| 展平后文本行数 | 85,431 |
+| 人类回答 | 58,546 (68.5%) |
+| ChatGPT 回答 | 26,885 (31.5%) |
+
+数据覆盖 5 个领域：reddit_eli5 (67,996)、finance (8,436)、open_qa (4,733)、
+medicine (2,582)、wiki_csai (1,684)。
+
+---
+
+## 2. Feature Engineering (90 Features)
+
+本项目共提取 90 个特征，分为 9 组。以下对每个特征给出定义与公式。
+
+### 2.1 Basic Counts (4 features)
+
+基础计数特征，度量文本的长度规模。
+
+| 特征 | 定义 |
+|---|---|
+| `char_count` | 文本的总字符数（含空格和标点），即 `len(text)`。最直接的长度度量。 |
+| `word_count` | 文本中的单词数。使用正则 `[A-Za-z]+(?:'[A-Za-z]+)?` 匹配英文单词。 |
+| `sentence_count` | 句子数量。通过句末标点 `.!?` 后跟空白来切分句子。 |
+| `paragraph_count` | 段落数量。通过连续换行符 `\n\s*\n` 分割段落。 |
+
+### 2.2 Averages (3 features)
+
+均值特征，描述文本的"粒度"和节奏。
+
+| 特征 | 公式 | 含义 |
+|---|---|---|
+| `avg_word_len` | $\frac{\sum_{i=1}^{N} \text{len}(w_i)}{N}$ | 平均词长。较长的平均词长通常意味着使用了更专业或更正式的词汇。 |
+| `avg_sentence_len` | $\frac{\text{word\_count}}{\text{sentence\_count}}$ | 平均句长（词/句）。ChatGPT 倾向于生成更长、更完整的句子。 |
+| `avg_paragraph_len` | $\frac{\text{word\_count}}{\text{paragraph\_count}}$ | 平均段落长度（词/段）。反映文本的组织粒度。 |
+
+### 2.3 Variability (4 features)
+
+变异性特征，度量句子和词语长度的波动程度。
+
+| 特征 | 公式 | 含义 |
+|---|---|---|
+| `word_len_std` | $\sigma(\text{len}(w_1), \text{len}(w_2), \dots)$ | 词长标准差。人类写作中词长变化更大，AI 倾向使用长度均匀的词。 |
+| `sentence_len_std` | $\sigma(s_1, s_2, \dots)$，其中 $s_i$ 为第 $i$ 个句子的词数 | 句长标准差。值越大表示句子长短交错越明显。 |
+| `max_sentence_len` | $\max(s_1, s_2, \dots)$ | 最长句子的词数。 |
+| `min_sentence_len` | $\min(s_1, s_2, \dots)$ | 最短句子的词数。 |
+
+### 2.4 Lexical Richness (6 features)
+
+词汇丰富度特征，衡量用词的多样性和重复程度。
+
+| 特征 | 公式 | 含义 |
+|---|---|---|
+| `type_token_ratio` | $\text{TTR} = \frac{V}{N}$，其中 $V$ 为不同词数（types），$N$ 为总词数（tokens） | 词型-词例比。值越高说明词汇越丰富。人类文本通常有更高的 TTR。 |
+| `hapax_legomena_ratio` | $\frac{V_1}{N}$，其中 $V_1$ 为只出现一次的词数 | Hapax 比率。只出现一次的词占总词数的比例，反映用词的独特性。 |
+| `long_word_ratio` | $\frac{\\#\{w : \text{len}(w) \geq 6\}}{N}$ | 长词比例（6 个字母及以上）。 |
+| `yules_k` | $K = 10^4 \cdot \frac{\sum_{i=1}^{m} i^2 V_i - N}{N^2}$，其中 $V_i$ 为出现 $i$ 次的词的数量 | Yule's K 常数。值越大表示词汇重复程度越高（多样性越低）。该指标对文本长度较不敏感。 |
+| `simpsons_diversity` | $D = 1 - \frac{\sum_{i} n_i(n_i - 1)}{N(N-1)}$，其中 $n_i$ 为第 $i$ 个词型的频次 | Simpson 多样性指数。值越接近 1 表示多样性越高。 |
+| `brunet_w` | $W = N^{V^{-0.172}}$ | Brunet's W。值越大表示词汇越贫乏。相比 TTR，该指标对文本长度更稳健。 |
+
+### 2.5 Punctuation & Formatting (10 features)
+
+标点与格式特征，捕捉书写习惯和排版风格。
+
+| 特征 | 公式 | 含义 |
+|---|---|---|
+| `stopword_ratio` | $\frac{\\#\text{stopwords}}{N}$ | 停用词比例。停用词集包含 the, is, at 等 30 个高频功能词。 |
+| `punct_ratio` | $\frac{\\#\text{punctuation}}{\\#\text{chars}}$ | 标点符号占总字符的比例。 |
+| `comma_ratio` | $\frac{\\#\text{commas}}{\\#\text{chars}}$ | 逗号密度。ChatGPT 倾向使用更多逗号来连接复杂句。 |
+| `semicolon_ratio` | $\frac{\\#\text{semicolons}}{\\#\text{chars}}$ | 分号密度。 |
+| `question_ratio` | $\frac{\\#\text{question marks}}{\\#\text{chars}}$ | 问号密度。人类回答中更常出现反问。 |
+| `exclamation_ratio` | $\frac{\\#\text{exclamation marks}}{\\#\text{chars}}$ | 感叹号密度。人类文本中情感表达更丰富。 |
+| `colon_ratio` | $\frac{\\#\text{colons}}{\\#\text{chars}}$ | 冒号密度。ChatGPT 常用冒号引出列表或解释。 |
+| `parenthesis_ratio` | $\frac{\\#\text{parentheses}}{\\#\text{chars}}$ | 括号密度。ChatGPT 更频繁使用括号补充说明。 |
+| `uppercase_ratio` | $\frac{\\#\text{uppercase letters}}{\\#\text{alpha chars}}$ | 大写字母占比。 |
+| `digit_ratio` | $\frac{\\#\text{digits}}{\\#\text{chars}}$ | 数字字符占比。 |
+
+### 2.6 Structure (4 features)
+
+结构特征，衡量文本的组织方式和模板化程度。
+
+| 特征 | 公式 | 含义 |
+|---|---|---|
+| `transition_per_100w` | $\frac{\\#\text{transition phrases} \times 100}{N}$ | 每 100 词中的过渡短语数量。过渡词包括 "however", "moreover", "in conclusion" 等 23 个短语。ChatGPT 显著更多使用过渡词。 |
+| `bullet_point_count` | 匹配 `^\s*[-*]\s` 的行数 | 列表项（bullet point）数量。AI 文本更倾向于使用列表来组织回答。 |
+| `number_count` | 匹配 `\d+` 的数量 | 文本中数字的出现次数。 |
+| `repeated_3gram_ratio` | $\frac{\\#\{g : \text{freq}(g) > 1\}}{\\#\text{total 3-grams}}$ | 重复三元组比例。出现超过 1 次的 3-gram 占总 3-gram 的比例。AI 文本更容易产生重复的短语模式。 |
+
+### 2.7 Readability (7 features)
+
+可读性特征，使用经典的文本可读性公式。这些指标从不同角度评估文本的阅读难度。
+
+| 特征 | 公式 | 含义 |
+|---|---|---|
+| `flesch_reading_ease` | $206.835 - 1.015 \cdot \frac{N}{S} - 84.6 \cdot \frac{Y}{N}$，其中 $S$ 为句数，$Y$ 为音节数 | Flesch 阅读易度。分数越高越容易阅读（0-100）。人类文本通常更易读。 |
+| `flesch_kincaid_grade` | $0.39 \cdot \frac{N}{S} + 11.8 \cdot \frac{Y}{N} - 15.59$ | Flesch-Kincaid 年级水平。对应美国学校年级，值越高要求的阅读水平越高。ChatGPT 文本的年级水平更高。 |
+| `gunning_fog` | $0.4 \cdot \left(\frac{N}{S} + 100 \cdot \frac{C}{N}\right)$，其中 $C$ 为复杂词数（3+ 音节） | Gunning Fog 指数。估计理解文本所需的正规教育年限。 |
+| `smog_index` | $3 + \sqrt{\frac{C \times 30}{S}}$ | SMOG 指数。基于多音节词的比例，估计理解文本所需的教育年限。 |
+| `coleman_liau_index` | $0.0588L - 0.296S' - 15.8$，其中 $L$ 为每 100 词的平均字母数，$S'$ 为每 100 词的平均句子数 | Coleman-Liau 指数。仅依赖字符和句子计数，不需要音节分析。 |
+| `automated_readability_index` | $4.71 \cdot \frac{\\#\text{chars}}{N} + 0.5 \cdot \frac{N}{S} - 21.43$ | ARI 自动可读性指数。对应理解文本所需的年级水平。在本实验中 LR 系数最大，是区分人类与 AI 文本最强的单一可读性特征。 |
+| `dale_chall_score` | 基于 Dale-Chall 3000 常用词表，统计"困难词"比例并加权计算 | Dale-Chall 可读性分数。使用常用词表判定困难词，分数越高文本越难。 |
+
+### 2.8 Semantic Embedding (50 features)
+
+语义嵌入特征，使用预训练语言模型捕捉深层语义信息。
+
+| 特征 | 方法 | 含义 |
+|---|---|---|
+| `emb_pc0` ~ `emb_pc49` | 使用 `all-MiniLM-L6-v2` (sentence-transformers) 将文本编码为 384 维向量，再通过 PCA 降维到 50 维 | 语义主成分。前 50 个主成分解释了约 45.2% 的总方差。这些特征捕捉了文本在语义空间中的位置，人类和 AI 文本在语义空间中有可分离的聚类趋势（见 PCA/t-SNE 图）。 |
+
+### 2.9 Perplexity (2 features)
+
+困惑度特征，使用 GPT-2 语言模型度量文本的"意外程度"。
+
+| 特征 | 公式 | 含义 |
+|---|---|---|
+| `gpt2_perplexity` | $\text{PPL} = \exp\left(-\frac{1}{T}\sum_{t=1}^{T} \log P(x_t \mid x_{<t})\right)$ | GPT-2 困惑度。衡量 GPT-2 模型对文本的"惊讶程度"。**AI 生成文本的困惑度显著低于人类文本**，因为 AI 输出更符合语言模型的概率分布。该特征是消融实验中单组最强的特征（仅 2 个特征即达 AUC 0.9912）。 |
+| `log_perplexity` | $\log(1 + \text{PPL})$ | 对数困惑度。对原始困惑度取 log 变换以压缩极端值，使分布更接近正态。 |
+
+---
+
+## 3. Evaluation Metrics
+
+### 3.1 ROC AUC (Area Under the Receiver Operating Characteristic Curve)
+
+$$\text{AUC} = \int_0^1 \text{TPR}(t) \, d(\text{FPR}(t))$$
+
+ROC 曲线以假阳性率（FPR）为横轴、真阳性率（TPR）为纵轴，AUC 为其下面积。
+AUC = 1.0 表示完美分类，AUC = 0.5 表示随机猜测。AUC 对类别不平衡具有鲁棒性，
+因此是本项目（human 68.5% vs chatgpt 31.5%）的首选指标。
+
+### 3.2 Accuracy
+
+$$\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}$$
+
+准确率，所有预测正确的样本占总样本的比例。直观但在类别不平衡时可能产生误导。
+
+### 3.3 Precision
+
+$$\text{Precision} = \frac{TP}{TP + FP}$$
+
+精确率，预测为正类的样本中有多少确实为正类。高 Precision 意味着较少的误报。
+
+### 3.4 Recall
+
+$$\text{Recall} = \frac{TP}{TP + FN}$$
+
+召回率，实际正类中有多少被成功识别。高 Recall 意味着较少的漏检。
+
+### 3.5 F1 Score
+
+$$F_1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
+
+F1 是 Precision 和 Recall 的调和平均数，在两者之间取得平衡。当类别不平衡
+时，F1 比 Accuracy 更具参考价值。
+
+---
+
+## 4. Baseline Result (LR + TF-IDF, 17 features)
+
+第一阶段基线使用 17 个浅层统计特征加 TF-IDF 文本特征，训练 Logistic Regression。
+
+Full HC3 (85,431 rows):
+
+| Metric | Value |
+|---|---:|
 | ROC AUC | 0.9955 |
 | Accuracy | 0.97 |
-| Human precision / recall / F1 | 0.99 / 0.97 / 0.98 |
-| ChatGPT precision / recall / F1 | 0.94 / 0.98 / 0.96 |
+| Human P / R / F1 | 0.99 / 0.97 / 0.98 |
+| ChatGPT P / R / F1 | 0.94 / 0.98 / 0.96 |
 
 Balanced 30,000-row pilot:
 
-| Metric | Result |
+| Metric | Value |
 |---|---:|
 | ROC AUC | 0.9859 |
 | Accuracy | 0.95 |
 | Human F1 | 0.95 |
 | ChatGPT F1 | 0.95 |
 
-## Figures
+---
 
-### Class Distribution
+## 5. Extended Experiment Results (90 features)
+
+第二阶段使用全部 90 个扩展特征（无 TF-IDF），对比三个模型。数据划分为 80%
+训练集 / 20% 测试集，按标签分层抽样。
+
+### 5.1 Model Comparison
+
+| Model | ROC AUC | Accuracy | Human P / R / F1 | ChatGPT P / R / F1 |
+|---|---:|---:|---|---|
+| Logistic Regression | 0.9984 | 0.9898 | 1.00 / 0.99 / 0.99 | 0.98 / 0.99 / 0.98 |
+| **XGBoost** | **0.9999** | **0.9964** | **1.00 / 1.00 / 1.00** | **0.99 / 1.00 / 0.99** |
+| Random Forest | 0.9996 | 0.9927 | 1.00 / 0.99 / 0.99 | 0.99 / 0.99 / 0.99 |
+
+XGBoost 在所有指标上均为最优，仅 61 个样本被错分（35 个 human 被误判为 chatgpt，
+26 个 chatgpt 被误判为 human）。
+
+![Model comparison](figures/model_comparison.png)
+
+### 5.2 XGBoost Confusion Matrix
+
+在 17,087 个测试样本中，XGBoost 的错误率仅为 0.36%。
+
+![XGBoost confusion matrix](figures/confusion_matrix_xgb.png)
+
+### 5.3 Improvement over Baseline
+
+| 对比 | ROC AUC | Accuracy |
+|---|---:|---:|
+| Baseline LR (17 feat + TF-IDF) | 0.9955 | 0.97 |
+| Extended LR (90 feat, no TF-IDF) | 0.9984 (+0.0029) | 0.9898 (+0.02) |
+| Extended XGBoost (90 feat) | 0.9999 (+0.0044) | 0.9964 (+0.03) |
+
+扩展特征在不使用 TF-IDF 的情况下已超越基线，说明深层统计和语义特征比词袋
+模型更有效。
+
+---
+
+## 6. Feature Ablation Study
+
+对每组特征单独训练 XGBoost，评估各组的独立判别能力。
+
+| Feature Group | # Features | AUC | Interpretation |
+|---|---:|---:|---|
+| **perplexity** | 2 | **0.9912** | 最强单组。GPT-2 困惑度直接度量文本与语言模型的契合度，AI 文本的困惑度远低于人类文本。 |
+| readability | 7 | 0.9741 | 可读性公式综合了句长、词长、音节等信息，能有效捕捉 AI 文本更高的阅读等级。 |
+| lexical_richness | 6 | 0.9367 | 词汇多样性指标。AI 文本用词重复度更高，TTR 和 Simpson 多样性更低。 |
+| punctuation | 10 | 0.9207 | 标点习惯差异。AI 更多使用逗号、冒号、括号；人类更多使用问号、感叹号。 |
+| basic_counts | 4 | 0.9204 | 长度本身就是信号：ChatGPT 回答平均更长。 |
+| averages | 3 | 0.9021 | 平均句长和段落长度反映 AI 生成的均匀节奏。 |
+| variability | 4 | 0.8987 | 句长和词长的波动度。人类写作的句长变化更不规律。 |
+| embedding_pca | 50 | 0.8972 | 语义嵌入在独立使用时表现中等，但与其他特征组合后互补性强。 |
+| structure | 4 | 0.8965 | 过渡词和重复模式。ChatGPT 大量使用 "however", "moreover" 等过渡短语。 |
+
+![Feature ablation](figures/feature_ablation.png)
+
+---
+
+## 7. Figures & Analysis
+
+### 7.1 Class Distribution
+
+数据集类别分布不平衡：human 占 68.5%，chatgpt 占 31.5%。模型训练时使用
+`class_weight="balanced"` 进行补偿。
 
 ![Class distribution](figures/class_distribution.png)
 
-### Confusion Matrix
+### 7.2 Feature Correlation Heatmap
 
-![Confusion matrix](figures/confusion_matrix.png)
+90 个特征的皮尔逊相关矩阵。可以观察到：
 
-### Numeric Feature Coefficients
+- **高正相关**：`char_count`、`word_count`、`sentence_count` 互相强正相关（长文本各方面计数都高）。可读性指标组内部（`gunning_fog`、`smog_index`、`coleman_liau_index` 等）也强正相关。
+- **强负相关**：`flesch_reading_ease` 与 `flesch_kincaid_grade` 强负相关（越容易读的文本年级水平越低）。
+- **弱相关/独立**：`gpt2_perplexity` 与大多数浅层特征的相关性较弱，说明困惑度提供了互补的判别信息。
 
-Positive coefficients point toward ChatGPT; negative coefficients point toward
-human-written text.
+![Correlation heatmap](figures/correlation_heatmap.png)
 
-![Numeric feature coefficients](figures/numeric_feature_coefficients.png)
+### 7.3 PCA Visualization
 
-## Early Findings
+对标准化后的 90 维特征做 PCA 降维到 2 维。PC1 解释 11.8% 方差，PC2 解释 6.6%。
+两类文本在低维空间中有清晰的分离趋势，但存在重叠区域。
 
-- ChatGPT answers are longer on average.
-- ChatGPT answers have longer sentences and higher Flesch-Kincaid grade.
-- ChatGPT answers use more transition phrases per 100 words.
-- Human answers have higher type-token ratio and higher Flesch reading ease.
+![PCA](figures/pca_extended.png)
 
-These are only first-pass signals from HC3. The next research direction is to
-test whether these signals still hold for newer models, humanized prompts,
-paraphrased human text, and copy-style prompts.
+### 7.4 t-SNE Visualization
 
-## Current Plan
+t-SNE 非线性降维（perplexity=30，5000 采样点）。相比 PCA，t-SNE 能更好地
+展现局部聚类结构。两类文本形成了可区分的集群，但边界处存在交错。
 
-1. Convert HC3 JSONL into a flat binary classification table.
-2. Extract interpretable linguistic and statistical features.
-3. Train baseline classifiers with numeric features and TF-IDF text features.
-4. Compare old ChatGPT text against newer prompt-conditioned AI generations.
-5. Use feature importance and SHAP-style attribution for the final report.
+![t-SNE](figures/tsne_extended.png)
 
-## Files
+### 7.5 SHAP Summary (XGBoost)
 
-- `data/raw/hc3_all.jsonl`: raw HC3 download.
-- `data/processed/hc3_flat.csv`: flattened text classification dataset.
-- `data/processed/hc3_features.csv`: numeric feature table.
-- `src/prepare_hc3.py`: HC3 preprocessing.
-- `src/run_baseline.py`: feature extraction and baseline modeling.
-- `figures/`: generated charts.
+SHAP（SHapley Additive exPlanations）基于博弈论的 Shapley 值，量化每个
+特征对单个预测的贡献。图中每个点代表一个样本，横轴为 SHAP 值（正值推向
+ChatGPT 类），颜色表示特征原始值的高低。
 
-## Run
+关键发现：
+- **`gpt2_perplexity`**：低困惑度（蓝色点）强烈推向 ChatGPT 预测，是最重要的特征。
+- **`automated_readability_index`**：高 ARI（红色点）推向 ChatGPT，说明 AI 文本的可读性等级更高。
+- **`paragraph_count`**：ChatGPT 回答包含更多段落。
+- **`parenthesis_ratio`**：ChatGPT 更频繁使用括号。
+
+![SHAP summary](figures/shap_summary.png)
+
+### 7.6 LR Top-20 Feature Coefficients
+
+Logistic Regression 标准化系数的 Top-20。正系数指向 ChatGPT，负系数指向人类。
+
+- **指向 ChatGPT**（正系数）：`automated_readability_index`、`word_count`、`hapax_legomena_ratio`、`gpt2_perplexity`（注：低困惑度在标准化后系数为正）。
+- **指向 Human**（负系数）：`flesch_kincaid_grade`、`avg_paragraph_len`、`flesch_reading_ease`、`log_perplexity`、`coleman_liau_index`。
+
+![LR coefficients](figures/lr_top20_coefficients.png)
+
+### 7.7 Domain Feature Comparison
+
+按 5 个数据领域分别展示 6 个关键特征在人类/ChatGPT 之间的分布差异。
+
+关键发现：
+- **`type_token_ratio`**：在所有领域中，人类文本的 TTR 都高于 ChatGPT。
+- **`transition_per_100w`**：ChatGPT 在所有领域中都使用更多过渡词，但在 finance 和 medicine 领域差异最明显。
+- **`avg_sentence_len`**：ChatGPT 的平均句长在大多数领域更高，但 reddit_eli5 差异最小（因为 Reddit 的人类回答风格也较长）。
+
+![Domain comparison](figures/domain_feature_comparison.png)
+
+### 7.8 Baseline Figures
+
+以下图表来自第一阶段基线实验（17 特征 + TF-IDF）。
+
+![Baseline confusion matrix](figures/confusion_matrix.png)
+
+![Baseline numeric feature coefficients](figures/numeric_feature_coefficients.png)
+
+---
+
+## 8. Key Findings
+
+1. **GPT-2 困惑度是最强的单一特征类别**。仅凭 perplexity + log_perplexity 两个特征即可达到 AUC 0.9912，因为 AI 生成文本天然更符合语言模型的概率分布。
+
+2. **ChatGPT 文本在可读性等级上偏高**。Flesch-Kincaid grade、ARI、Gunning Fog 等指标一致表明 ChatGPT 倾向于使用更长的句子和更专业的词汇，使其自动可读性等级更高。
+
+3. **人类文本的词汇多样性更高**。TTR、Simpson 多样性和 Hapax 比率都显示人类用词更丰富、重复度更低。
+
+4. **ChatGPT 具有明显的"模板化"倾向**。过渡词使用频率高、括号和冒号密度高、列表项多，这些都指向一种结构化的、格式固定的回答风格。
+
+5. **扩展特征显著优于 TF-IDF 基线**。90 个特征的 XGBoost (AUC 0.9999) 远超 17 特征 + TF-IDF 的 LR 基线 (AUC 0.9955)，且特征完全可解释。
+
+---
+
+## 9. Files
+
+| 文件 | 说明 |
+|---|---|
+| `data/raw/hc3_all.jsonl` | HC3 原始数据（从 HuggingFace 下载） |
+| `data/processed/hc3_flat.csv` | 展平后的二分类数据集 |
+| `data/processed/hc3_extended_features.csv` | 90 维扩展特征表（含标签和元信息） |
+| `src/prepare_hc3.py` | 数据预处理：JSONL → flat CSV |
+| `src/run_baseline.py` | 第一阶段基线：17 特征 + TF-IDF + LR |
+| `src/run_extended.py` | 第二阶段扩展：90 特征 + LR/XGBoost/RF + SHAP |
+| `figures/` | 所有生成的图表 |
+| `reports/project_budget_and_plan.md` | 项目计划与预算 |
+
+## 10. Run
 
 ```bash
-. .venv/bin/activate
+# 1. Install dependencies
+pip install pandas numpy matplotlib seaborn scikit-learn textstat xgboost shap
+pip install torch transformers sentence-transformers datasets
+
+# 2. Download and preprocess HC3
 python src/prepare_hc3.py
-python src/run_baseline.py --max-rows 30000
-```
 
-Run full HC3:
-
-```bash
+# 3. Run baseline (optional)
 python src/run_baseline.py
+
+# 4. Run extended experiment (full, requires GPU)
+python src/run_extended.py
+
+# 5. Run from cached features (skip GPU feature extraction)
+python src/run_extended.py   # auto-detects cache
+
+# 6. Quick pilot (30k rows)
+python src/run_extended.py --max-rows 30000 --recompute
 ```
 
-The full numeric feature table is cached at `data/processed/hc3_features.csv`.
-Use `--recompute-features` if the feature extractor changes.
+特征缓存保存在 `data/processed/hc3_extended_features.csv`，如需重新计算特征
+请使用 `--recompute` 参数。
