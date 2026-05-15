@@ -434,7 +434,75 @@ Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内
 
 ---
 
-## 9. Key Findings
+## 9. Cross-Dataset Generalization Study
+
+为验证各方法的泛化能力，我们在 **4 个数据集** 上运行了相同的 3 种方法（XGBoost 90特征、RoBERTa fine-tune、Fast-DetectGPT）。
+
+### 9.1 Datasets
+
+| 数据集 | 规模 | AI 模型 | 领域 |
+|--------|------|---------|------|
+| HC3 | 85K | ChatGPT | QA, Wiki, Reddit 等 5 领域 |
+| SemEval 2024 Task 8 | 120K train / 34K test | ChatGPT, GPT-4, davinci, bloomz, cohere, dolly | WikiHow, Reddit, arXiv, Wikipedia, PeerRead |
+| TuringBench | 200K+ | 19 种模型（GPT-1/2/3, Grover, XLNet, CTRL 等） | 新闻 |
+| AI Text Detection Pile | 1.39M (采样 100K) | 混合 AI 模型 | 学术写作 |
+
+### 9.2 Cross-Dataset Results (AUC)
+
+| 数据集 | XGBoost (90特征) | RoBERTa fine-tune | Fast-DetectGPT (零样本) |
+|--------|:-:|:-:|:-:|
+| HC3 | **0.9999** | **0.9980** | 0.9292 |
+| AI Detection Pile | **0.9789** | 0.9595 | 0.8889 |
+| TuringBench | **0.9841** | 0.6245 | 0.6038 |
+| SemEval 2024 | 0.6872 | 0.6278 | **0.8068** |
+
+### 9.3 Per-Model Analysis (TuringBench XGBoost)
+
+XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
+
+| 模型 | AUC | 模型 | AUC |
+|------|-----|------|-----|
+| CTRL | 0.9991 | Grover-mega | 0.9802 |
+| GPT-1 | 0.9982 | GPT-3 | 0.9758 |
+| XLNet-large | 0.9977 | Grover-large | 0.9761 |
+| Fair-WMT19 | 0.9973 | GPT-2-large | 0.9715 |
+| PPLM-GPT2 | 0.9968 | Fair-WMT20 | 0.9695 |
+| PPLM-distil | 0.9961 | GPT-2-medium | 0.9668 |
+| GPT-2-pytorch | 0.9956 | GPT-2-xl | 0.9666 |
+| XLM | 0.9943 | GPT-2-small | 0.9635 |
+| XLNet-base | 0.9933 | Transfo-XL | 0.9849 |
+
+### 9.4 Analysis & Insights
+
+**核心发现：模型多样性是泛化的关键挑战。**
+
+1. **单一模型数据集上有监督方法近乎完美**。HC3（仅 ChatGPT）和 Pile 上，XGBoost/RoBERTa AUC 均 > 0.95，说明特征工程和微调都能很好地学习单个模型的文本模式。
+
+2. **多模型场景下有监督方法显著退化**。SemEval 包含 6 种模型（含 GPT-4、bloomz），RoBERTa AUC 降至 0.63；TuringBench 19 种模型上 RoBERTa 也仅 0.62。原因是不同模型的生成模式差异巨大，训练集分布难以覆盖。
+
+3. **零样本方法在多模型场景反超**。Fast-DetectGPT 在 SemEval 上 AUC 0.81，显著优于有监督方法（0.69/0.63）。零样本方法不依赖训练数据分布，具备更好的跨模型泛化能力。
+
+4. **特征工程比深度学习更鲁棒**。XGBoost 在 TuringBench 上 AUC 0.98（RoBERTa 仅 0.62），说明手工特征（困惑度、词汇丰富度、可读性等）捕获了更通用的 human-vs-machine 差异。
+
+5. **方法选择建议**：
+   - 已知 AI 模型 → XGBoost 特征工程（准确率最高）
+   - 未知/多种 AI 模型 → Fast-DetectGPT（泛化最好）
+   - 追求平衡 → 集成多种方法
+
+### 9.5 Cross-Dataset Comparison Figures
+
+#### SemEval 2024 Task 8
+![SemEval comparison](figures/semeval_comparison.png)
+
+#### TuringBench
+![TuringBench comparison](figures/turingbench_comparison.png)
+
+#### AI Text Detection Pile
+![Pile comparison](figures/pile_comparison.png)
+
+---
+
+## 10. Key Findings
 
 1. **GPT-2 困惑度是最强的单一特征类别**。仅凭 perplexity + log_perplexity 两个特征即可达到 AUC 0.9912，因为 AI 生成文本天然更符合语言模型的概率分布。
 
@@ -448,7 +516,7 @@ Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内
 
 ---
 
-## 9. Files
+## 11. Files
 
 | 文件 | 说明 |
 |---|---|
@@ -458,6 +526,13 @@ Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内
 | `src/prepare_hc3.py` | 数据预处理：JSONL → flat CSV |
 | `src/run_baseline.py` | 第一阶段基线：17 特征 + TF-IDF + LR |
 | `src/run_extended.py` | 第二阶段扩展：90 特征 + LR/XGBoost/RF + SHAP |
+| `src/run_roberta.py` | RoBERTa fine-tune 实验 |
+| `src/run_detectgpt.py` | Fast-DetectGPT 零样本检测 |
+| `src/run_binoculars.py` | Binoculars 双模型检测 |
+| `src/run_semeval.py` | SemEval 2024 Task 8 跨数据集实验 |
+| `src/run_turingbench.py` | TuringBench 跨数据集实验 |
+| `src/run_pile.py` | AI Text Detection Pile 跨数据集实验 |
+| `src/data_splits.py` | 共享数据分割工具 |
 | `figures/` | 所有生成的图表 |
 | `reports/project_budget_and_plan.md` | 项目计划与预算 |
 
