@@ -449,13 +449,13 @@ Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内
 
 ### 9.2 Cross-Dataset Results (AUC)
 
-| 数据集 | XGBoost (90特征) | RoBERTa fine-tune | Fast-DetectGPT (零样本) |
-|--------|:-:|:-:|:-:|
-| HC3 | **0.9999** | **0.9980** | 0.9292 |
-| AI Detection Pile (100K采样) | 0.9789 | 0.9595 | 0.8889 |
-| AI Detection Pile (728K全量) | **0.9831** | **0.9708** | — |
-| TuringBench | **0.9841** | 0.6245 | 0.6038 |
-| SemEval 2024 | 0.6872 | 0.6278 | **0.8068** |
+| 数据集 | XGBoost (90特征) | RoBERTa (采样训练) | RoBERTa (全量训练) | Fast-DetectGPT (零样本) |
+|--------|:-:|:-:|:-:|:-:|
+| HC3 | **0.9999** | **0.9980** | — | 0.9292 |
+| AI Detection Pile (100K采样) | 0.9789 | 0.9595 | — | 0.8889 |
+| AI Detection Pile (728K全量) | **0.9831** | — | **0.9708** | — |
+| TuringBench | **0.9841** | 0.6245 | 0.6047 | 0.6038 |
+| SemEval 2024 | 0.6872 | 0.6278 | 0.6801 | **0.8068** |
 
 ### 9.3 Per-Model Analysis (TuringBench XGBoost)
 
@@ -481,7 +481,7 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
 
 2. **全量数据提升有限但 RoBERTa 获益更多**。Pile 从 100K 扩大到 728K，XGBoost 仅提升 +0.004（0.9789→0.9831），而 RoBERTa 提升 +0.011（0.9595→0.9708），说明深度学习更受益于大数据量。
 
-3. **多模型场景下有监督方法显著退化**。SemEval 包含 6 种模型（含 GPT-4、bloomz），RoBERTa AUC 降至 0.63；TuringBench 19 种模型上 RoBERTa 也仅 0.62。原因是不同模型的生成模式差异巨大，训练集分布难以覆盖。
+3. **多模型场景下有监督方法显著退化，且全量训练无法解决**。SemEval 包含 6 种模型（含 GPT-4、bloomz），RoBERTa 从 40K 扩大到 120K 全量训练仅从 0.6278 提升到 0.6801；TuringBench 332K 全量训练反而下降（0.6245→0.6047），因 19 种 AI 模型 vs 1 种 human 导致严重类别不平衡，RoBERTa 将 99.8% 的 human 文本误判为 AI。**这说明多模型检测的瓶颈不是数据量，而是任务本身的分布复杂性。**
 
 3. **零样本方法在多模型场景反超**。Fast-DetectGPT 在 SemEval 上 AUC 0.81，显著优于有监督方法（0.69/0.63）。零样本方法不依赖训练数据分布，具备更好的跨模型泛化能力。
 
