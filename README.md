@@ -333,7 +333,13 @@ Logistic Regression 标准化系数的 Top-20。正系数指向 ChatGPT，负系
 除了手工特征 + 传统分类器，本项目还实现了三种最新的 AI 文本检测方法，
 覆盖三个不同的技术范式。
 
-### 8.1 Method Overview
+### 8.1 Method Principles
+
+下图展示了四种方法的核心原理：
+
+![Method Principles](figures/method_principles.png)
+
+### 8.2 Method Overview
 
 | 方法 | 范式 | 是否需要训练 | 论文 |
 |---|---|---|---|
@@ -342,7 +348,7 @@ Logistic Regression 标准化系数的 Top-20。正系数指向 ChatGPT，负系
 | Fast-DetectGPT | 零样本概率曲率 | 无需训练 | Bao et al., ICLR 2024 |
 | Binoculars | 零样本双模型对比 | 无需训练 | Hans et al., ICML 2024 |
 
-### 8.2 RoBERTa Fine-tune
+### 8.3 RoBERTa Fine-tune
 
 在 HC3 上 fine-tune `roberta-base` (125M params) 做二分类。模型直接从
 原始文本学习判别特征，不需要手工设计特征。
@@ -351,7 +357,7 @@ Logistic Regression 标准化系数的 Top-20。正系数指向 ChatGPT，负系
 
 **训练配置**：3 epochs, batch size 32, lr 2e-5 (AdamW), FP16, A100 GPU
 
-### 8.3 Fast-DetectGPT
+### 8.4 Fast-DetectGPT
 
 Fast-DetectGPT 的核心观察：**AI 生成文本处于语言模型概率曲面的局部极大值附近**。
 
@@ -365,7 +371,7 @@ $$\tilde{d}(x) = \frac{\frac{1}{T}\sum_t [\log p_\theta(x_t \mid x_{<t}) - \log 
 
 **评分模型**：GPT-2 medium
 
-### 8.4 Binoculars
+### 8.5 Binoculars
 
 Binoculars 使用两个不同的语言模型计算同一文本的交叉熵比值：
 
@@ -380,7 +386,7 @@ $$B(x) = \frac{H_{M_1}(x)}{H_{M_2}(x)}$$
 效果更好。本实验使用 GPT-2 medium/large 作为轻量级复现，两个模型过于
 相似导致比值信号较弱。单模型 CE 的 AUC (0.9891) 远高于比值 (0.7995)。
 
-### 8.5 All Methods Comparison
+### 8.6 All Methods Comparison
 
 | Method | Type | Training | ROC AUC | Accuracy | Short-text AUC (<100w) |
 |---|---|---|---:|---:|---:|
@@ -392,7 +398,7 @@ $$B(x) = \frac{H_{M_1}(x)}{H_{M_2}(x)}$$
 | Binoculars (GPT-2 pair) | 零样本 | 无 | 0.7995 | 0.8141 | 0.7855 |
 | Single-model CE (GPT-2 medium) | 统计 | 无 | 0.9891 | — | — |
 
-### 8.6 Analysis
+### 8.7 Analysis
 
 **有监督方法大幅领先零样本方法**。XGBoost (AUC 0.9999) 和 RoBERTa (0.9980)
 在 HC3 数据集上都接近完美分类，而零样本方法 Fast-DetectGPT (0.9292) 和
@@ -412,7 +418,7 @@ Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内
 **短文本是零样本方法的弱点**。Fast-DetectGPT 的短文本 AUC 降至 0.9048，
 而 XGBoost (0.9995) 和 RoBERTa (0.9965) 几乎不受影响。
 
-### 8.7 Advanced Method Figures
+### 8.8 Advanced Method Figures
 
 #### Fast-DetectGPT Score Distribution
 
