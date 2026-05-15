@@ -397,6 +397,10 @@ $$B(x) = \frac{H_{M_1}(x)}{H_{M_2}(x)}$$
 | Fast-DetectGPT | 零样本 | 无 | 0.9292 | 0.8954 | 0.9048 |
 | Binoculars (GPT-2 pair) | 零样本 | 无 | 0.7995 | 0.8141 | 0.7855 |
 | Single-model CE (GPT-2 medium) | 统计 | 无 | 0.9891 | — | — |
+| **Single-model CE (Mistral-7B-Instruct)** | 统计 | 无 | **0.9933** | 0.9848 | — |
+| Binoculars (Mistral-7B base/instruct) | 零样本 | 无 | 0.5666 | — | — |
+| Binoculars (Llama-3.1-8B base/instruct) | 零样本 | 无 | 0.5762 | — | — |
+| Binoculars (Qwen2.5-7B base/instruct) | 零样本 | 无 | 0.5134 | — | — |
 
 ### 8.7 Analysis
 
@@ -412,8 +416,10 @@ Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内
 最本质的判别信号。
 
 **Binoculars 在 GPT-2 级别模型上效果不佳**。GPT-2 medium 和 large 架构
-太相似，交叉熵比值缺乏区分度。需要差异更大的模型对（如 base/instruct）
-才能发挥 Binoculars 的优势。
+太相似，交叉熵比值缺乏区分度。然而，**升级到 7B 模型对（Llama-3.1、Qwen2.5、Mistral）后
+Binoculars 比值反而更差**（AUC 0.51-0.58，接近随机），因为 base/instruct 的 CE 方向一致，
+比值抹掉了有用信号。**真正有效的是单模型困惑度**：Mistral-7B-Instruct 单模型 CE 达到
+AUC 0.9933，超越所有零样本方法，仅次于 XGBoost (0.9999)。
 
 **短文本是零样本方法的弱点**。Fast-DetectGPT 的短文本 AUC 降至 0.9048，
 而 XGBoost (0.9995) 和 RoBERTa (0.9965) 几乎不受影响。
@@ -449,13 +455,12 @@ Binoculars (0.7995) 明显落后。这符合预期：有监督方法在分布内
 
 ### 9.2 Cross-Dataset Results (AUC)
 
-| 数据集 | XGBoost (90特征) | RoBERTa (采样训练) | RoBERTa (全量训练) | Fast-DetectGPT (零样本) |
-|--------|:-:|:-:|:-:|:-:|
-| HC3 | **0.9999** | **0.9980** | — | 0.9292 |
-| AI Detection Pile (100K采样) | 0.9789 | 0.9595 | — | 0.8889 |
-| AI Detection Pile (728K全量) | **0.9831** | — | **0.9708** | — |
-| TuringBench | **0.9841** | 0.6245 | 0.6047 | 0.6038 |
-| SemEval 2024 | 0.6872 | 0.6278 | 0.6801 | **0.8068** |
+| 数据集 | XGBoost (90特征) | RoBERTa (全量) | Fast-DetectGPT | Mistral-7B CE | Bino 7B |
+|--------|:-:|:-:|:-:|:-:|:-:|
+| HC3 | **0.9999** | **0.9980** | 0.9292 | **0.9933** | 0.5666 |
+| AI Detection Pile (728K) | **0.9831** | 0.9708 | 0.8889 | — | — |
+| TuringBench | **0.9841** | 0.6047 | 0.6038 | 0.5895 | 0.6653 |
+| SemEval 2024 | 0.6872 | 0.6801 | 0.8068 | **0.9729** 🏆 | 0.6942 |
 
 ### 9.3 Per-Model Analysis (TuringBench XGBoost)
 
@@ -483,14 +488,21 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
 
 3. **多模型场景下有监督方法显著退化，且全量训练无法解决**。SemEval 包含 6 种模型（含 GPT-4、bloomz），RoBERTa 从 40K 扩大到 120K 全量训练仅从 0.6278 提升到 0.6801；TuringBench 332K 全量训练反而下降（0.6245→0.6047），因 19 种 AI 模型 vs 1 种 human 导致严重类别不平衡，RoBERTa 将 99.8% 的 human 文本误判为 AI。**这说明多模型检测的瓶颈不是数据量，而是任务本身的分布复杂性。**
 
-3. **零样本方法在多模型场景反超**。Fast-DetectGPT 在 SemEval 上 AUC 0.81，显著优于有监督方法（0.69/0.63）。零样本方法不依赖训练数据分布，具备更好的跨模型泛化能力。
+4. **零样本方法在多模型场景反超**。Fast-DetectGPT 在 SemEval 上 AUC 0.81，显著优于有监督方法（0.69/0.68）。零样本方法不依赖训练数据分布，具备更好的跨模型泛化能力。
 
-4. **特征工程比深度学习更鲁棒**。XGBoost 在 TuringBench 上 AUC 0.98（RoBERTa 仅 0.62），说明手工特征（困惑度、词汇丰富度、可读性等）捕获了更通用的 human-vs-machine 差异。
+5. **Mistral-7B 单模型困惑度是多模型检测的最佳方案**。在 SemEval 上 AUC 达到 **0.9729**，远超所有其他方法。Per-model：chatGPT 100%、cohere 100%、GPT-4 99.3%、davinci 98.3%、human 91.5%。更大的语言模型能更精准地区分人类文本和 AI 文本的概率分布差异。
 
-5. **方法选择建议**：
-   - 已知 AI 模型 → XGBoost 特征工程（准确率最高）
-   - 未知/多种 AI 模型 → Fast-DetectGPT（泛化最好）
-   - 追求平衡 → 集成多种方法
+6. **但 Mistral CE 在旧模型上失效**。TuringBench（GPT-1/2/3 等旧模型）上仅 AUC 0.59，因为旧模型生成的文本对 Mistral-7B 而言也有较低困惑度（类似人类文本），**模型代际差异影响困惑度检测方向**。
+
+7. **Binoculars 双模型比值在所有场景下均不如单模型 CE**。7B 模型对（Llama-3.1、Qwen2.5、Mistral）的比值 AUC 仅 0.51-0.69，而单模型 CE 可达 0.97-0.99。比值操作抹掉了有用信号。
+
+8. **特征工程比深度学习更鲁棒**。XGBoost 在 TuringBench 上 AUC 0.98（RoBERTa 仅 0.60），手工特征捕获了更通用的 human-vs-machine 差异。
+
+9. **方法选择建议**：
+   - 已知 AI 模型（ChatGPT 等现代模型） → Mistral-7B CE 或 XGBoost（准确率最高）
+   - 已知 AI 模型（含旧模型） → XGBoost 特征工程（最鲁棒）
+   - 未知/多种现代 AI 模型 → Mistral-7B CE（AUC 0.97）
+   - 资源受限 → Fast-DetectGPT（轻量零样本）
 
 ### 9.5 Cross-Dataset Comparison Figures
 
