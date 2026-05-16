@@ -113,7 +113,7 @@ For each token $t_i$ conditioned on prefix $t_{<i}$:
 - **Rank:** Position of $t_i$ in the sorted probability distribution
 - **Top-1/Top-5 probability:** Cumulative probability of most likely tokens
 
-Each signal is aggregated into statistical features (mean, std, min, max, median, percentiles, skew, kurtosis), plus burstiness (log-prob temporal difference) and sequence length, yielding 30 features per text.
+Each signal is aggregated into statistical features (mean, std, min, max, median, percentiles, skew, kurtosis), plus burstiness (log-prob temporal difference) and sequence length, yielding 30 features per text. (See [token_features_detailed.md](token_features_detailed.md) for the complete feature list with definitions and intuitions.)
 
 ### 4.3 Classification Models
 

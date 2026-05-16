@@ -1,6 +1,8 @@
 # Token-level Probability Features: Interpretability Report
 
 > 本报告详细分析了基于 Mistral-7B-Instruct 的 30 维 token-level 概率特征在 AI 文本检测中的可解释性，涵盖 4 个数据集的 SHAP 归因、特征分布对比、失败原因分析和单样本级别归因。
+>
+> **30 维特征的详细定义和直觉解释：** [token_features_detailed.md](token_features_detailed.md)
 
 ---
 
