@@ -514,17 +514,24 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
 - **Top-k probability**：top1/top5 mean & std
 - **Burstiness**：log prob 差分的 mean/std
 
-| 方法 | HC3 AUC | SemEval AUC |
-|------|---------|-------------|
-| XGBoost (90 CPU 特征) | 0.9999 | 0.6872 |
-| Fast-DetectGPT | 0.9292 | 0.8068 |
-| Mistral CE (1 个标量) | 0.9933 | 0.9729 |
-| **Token-only (30 特征)** | **0.9998** | **0.9784** 🏆 |
-| Combined (120 特征) | 0.9999 | 0.8956 |
+| 方法 | HC3 AUC | SemEval AUC | TuringBench AUC | Pile AUC |
+|------|---------|-------------|-----------------|----------|
+| XGBoost (90 CPU 特征) | 0.9999 | 0.6872 | **0.9841** | 0.9831 |
+| Fast-DetectGPT | 0.9292 | 0.8068 | 0.6038 | 0.8889 |
+| Mistral CE (1 个标量) | 0.9933 | 0.9729 | 0.5895 | — |
+| **Token-only (30 特征)** | **0.9998** | **0.9784** 🏆 | 0.4853 | **0.9918** |
+| Combined (120 特征) | 0.9999 | 0.8956 | — | — |
 
-**Token-only 30 特征在 SemEval 上 AUC 0.9784，是所有方法中最高的。** 最重要的特征是 `rank_q90`（第 90 百分位 token rank）和 `lp_q10`（第 10 百分位 log probability），它们捕获了"最不可预测的 token"的行为模式——AI 文本中即使最"出人意料"的 token 也有较高概率，而人类文本中存在更多真正意想不到的用词。
+**关键发现：**
 
-![Token features comparison](figures/token_features_comparison.png)
+- **Token-only 在 SemEval（0.9784）和 Pile（0.9918）上是最强方法**，在现代 AI 模型生成的文本上检测效果极佳
+- **TuringBench 上 Token-only 彻底失败（0.4853）**：TuringBench 包含 19 个旧模型（GPT-2、XLNet、CTRL 等），这些模型生成文本的 token 概率分布在 Mistral-7B 视角下与人类文本无异。Mistral 不认识这些旧模型的"指纹"
+- **XGBoost 浅层特征在 TuringBench 上仍是唯一有效方法（0.9841）**：词频、句法等统计特征不依赖特定模型，泛化性更强
+- **Pile 上 token 特征最重要的是 `rank_top100_frac`（占比 45%）**：即多少 token 落在 top-100 预测中，AI 文本中这一比例显著更高
+
+**结论：没有单一方法能统治所有场景。** Token 概率特征在现代 AI 文本检测上是最强的，但对旧模型文本无效。浅层统计特征则在旧模型上更稳健。实际部署应组合使用。
+
+![Token features comparison](figures/token_features_full_comparison.png)
 
 ### 9.6 Cross-Dataset Comparison Figures
 
@@ -569,6 +576,8 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
 | `src/run_semeval.py` | SemEval 2024 Task 8 跨数据集实验 |
 | `src/run_turingbench.py` | TuringBench 跨数据集实验 |
 | `src/run_pile.py` | AI Text Detection Pile 跨数据集实验 |
+| `src/run_token_features.py` | Token-level 概率特征 (HC3 + SemEval) |
+| `src/run_token_features_ext.py` | Token-level 概率特征 (TuringBench + Pile) |
 | `src/data_splits.py` | 共享数据分割工具 |
 | `figures/` | 所有生成的图表 |
 | `reports/project_budget_and_plan.md` | 项目计划与预算 |
