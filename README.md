@@ -2,6 +2,10 @@
 
 方向一：AI 生成文本的特征挖掘与检测
 
+> **论文版本：** [reports/paper.md](reports/paper.md) — 完整的学术论文格式，含 Abstract、Methodology、Experiments、Discussion
+>
+> **Token 特征可解释性报告：** [reports/token_features_interpretability.md](reports/token_features_interpretability.md)
+
 本项目基于 HC3 (Human ChatGPT Comparison Corpus) 数据集，构建可解释的
 人类文本 vs ChatGPT 文本二分类系统。从浅层统计特征到深层语义嵌入，系统
 地挖掘 AI 生成文本的可量化信号，并通过 SHAP 归因分析提供模型可解释性。
