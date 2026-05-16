@@ -506,6 +506,8 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
 
 ### 9.5 Token-level Probability Features (Inspired by SemEval Champion)
 
+> **详细可解释性报告：** [reports/token_features_interpretability.md](reports/token_features_interpretability.md)
+
 借鉴 SemEval-2024 Task 8 冠军 Genaios 的方法，从 Mistral-7B-Instruct 提取 **30 个 token-level 概率特征**：
 
 - **Log probability 统计**：mean, std, min, max, median, q10, q90, skew, kurtosis
