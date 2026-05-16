@@ -294,11 +294,59 @@ To test whether our token probability framework is observer-model-agnostic, we r
 3. **TuringBench remains unsolvable.** Neither observer can detect legacy AI text (both AUC ≈ 0.5), confirming this is a fundamental limitation of the predictability hypothesis for cross-generation detection, not an artifact of model choice.
 4. **Practical implication:** Teams with limited GPU resources can deploy Qwen3.5-4B (7.8 GB) instead of Mistral-7B (13.5 GB) with no detection loss—a 42% reduction in memory requirements.
 
-### 7.4 Implications for the Detection Arms Race
+### 7.4 Temporal Proximity Hypothesis: Why Detection Effectiveness Depends on Era
+
+A striking pattern emerges when we align detection performance with the **temporal distance** between the observer/detector and the generator:
+
+#### 7.4.1 The Full Timeline
+
+| Method | Type | Era | HC3 (2022) | SemEval (2023-24) | TuringBench (2019-20) | Pile (mixed) |
+|--------|------|-----|:-:|:-:|:-:|:-:|
+| XGBoost (90 feat) | Traditional ML | Timeless | **0.9999** | 0.6872 | **0.9841** | **0.9831** |
+| RoBERTa fine-tune | Deep Learning | 2019 | 0.9980 | 0.6801 | 0.6047 | 0.9708 |
+| Fast-DetectGPT | Zero-shot | 2023 | 0.9292 | 0.8068 | 0.6038 | 0.8889 |
+| Mistral-7B CE | Zero-shot | 2023.10 | 0.9933 | 0.9729 | 0.5895 | — |
+| Token feat (Mistral) | LLM+ML | 2023.10 | 0.9998 | 0.9784 | 0.4853 | 0.9918 |
+| Token feat (Qwen-4B) | LLM+ML | 2025 | 0.9994 | **0.9844** | 0.5549 | 0.9924 |
+| Token feat (Qwen-35B MoE) | LLM+ML | 2025 | 0.9995 | 0.9541 | 0.5250 | *running* |
+
+#### 7.4.2 Key Observations
+
+**1. XGBoost (traditional features) is uniquely "timeless."**
+
+XGBoost with 90 handcrafted features operates on surface-level statistics (lexical diversity, readability, punctuation patterns) that are invariant to the era of the AI model. It achieves AUC > 0.98 on both TuringBench (2019 models) and HC3 (2022 model) — something no LLM-based method can do. However, it fails on SemEval (0.6872) because modern multi-model AI text has converged in surface statistics toward human norms.
+
+**2. LLM-based methods exhibit "temporal myopia."**
+
+Token probability features from Mistral-7B (2023) detect ChatGPT/GPT-4 (2022-24) with AUC > 0.97, but completely fail on GPT-2/XLNet (2019-20) with AUC ≈ 0.5. This is because the "predictability gap" only exists between models that share similar training distributions and architectural paradigms.
+
+**3. The complementarity is temporal.**
+
+| Generator Era | Best Method | AUC | Why |
+|---------------|------------|-----|-----|
+| Legacy (2019-20) | XGBoost 90-feat | 0.98 | Surface anomalies persist across eras |
+| Contemporary (2022-24) | Token feat (LLM) | 0.98 | Same-generation predictability gap |
+| Mixed/Unknown | Neither alone | — | Need ensemble |
+
+**4. RoBERTa shows temporal decay.**
+
+RoBERTa (2019) performs well on HC3 (0.998) through fine-tuning, but poorly on TuringBench (0.605) despite the generators being contemporaneous — because it was fine-tuned on HC3 distribution only. This illustrates that fine-tuning effectiveness depends on **data distribution proximity**, not temporal proximity.
+
+#### 7.4.3 The Temporal Proximity Hypothesis
+
+We propose:
+
+> *LLM-based detection methods are most effective when the observer model and the generator model belong to the same technological generation — sharing similar training corpora, architectures, and optimization objectives. As the temporal gap widens, the "predictability gap" signal degrades to chance level.*
+
+> *Traditional statistical features are generation-invariant but resolution-limited: they capture coarse stylistic differences that persist across eras but fail when generators produce text with human-like surface statistics.*
+
+This has a practical implication for the **detection arms race**: as AI models improve, both detection paradigms weaken — LLM-based methods because today's observer cannot anticipate tomorrow's generator, and statistical methods because surface-level anomalies are progressively eliminated. **Robust detection requires multi-paradigm ensembles that combine temporal-aware LLM features with era-invariant statistical features.**
+
+### 7.5 Implications for the Detection Arms Race
 
 The cross-dataset analysis suggests that as AI models evolve, detection methods must evolve in tandem. Token-level features from a contemporary model are currently the strongest approach, but they are inherently tied to the observer model's generation. Future work should explore observer-agnostic probability features or multi-observer ensembles.
 
-### 7.4 Practical Recommendations
+### 7.6 Practical Recommendations
 
 1. **For educational settings** (detecting ChatGPT in student work): Token probability features offer the best accuracy (AUC > 0.97) with strong interpretability.
 2. **For content moderation** (diverse/unknown generators): Combine shallow features with token features; flag only when both agree.

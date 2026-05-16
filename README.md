@@ -625,6 +625,19 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 
 ![Observer Model Comparison](figures/token_observer_comparison.png)
 
+7. **时间近邻假说（Temporal Proximity Hypothesis）：检测有效性取决于观察者与生成器的"代际距离"**。
+
+| 方法 | 类型 | 时代 | HC3 (2022) | SemEval (2023-24) | TuringBench (2019-20) | Pile (混合) |
+|------|------|------|:-:|:-:|:-:|:-:|
+| XGBoost (90 feat) | 传统 ML | 无时代性 | **0.9999** | 0.6872 | **0.9841** | **0.9831** |
+| RoBERTa fine-tune | 深度学习 | 2019 | 0.9980 | 0.6801 | 0.6047 | 0.9708 |
+| Token feat (Mistral) | LLM+ML | 2023.10 | 0.9998 | 0.9784 | 0.4853 | 0.9918 |
+| Token feat (Qwen-4B) | LLM+ML | 2025 | 0.9994 | **0.9844** | 0.5549 | 0.9924 |
+
+- **XGBoost 是唯一"跨时代"有效的方法**：基于表面统计（词汇多样性、可读性、标点模式），不依赖特定生成器的概率分布。在 TuringBench（2019 模型）和 HC3（2022 模型）上都 > 0.98，但在 SemEval（2023 多模型）上失效（0.69），因为现代 AI 文本的表面统计已趋近人类。
+- **LLM 方法有"时间近视"**：观察者和生成器属于同一代时（Mistral 检测 ChatGPT/GPT-4），AUC > 0.97；跨代时（Mistral 检测 GPT-2），AUC ≈ 0.5。
+- **鲁棒检测需要多范式集成**：传统特征覆盖旧 AI，LLM 特征覆盖新 AI，二者互补。
+
 ---
 
 ## 11. Files
