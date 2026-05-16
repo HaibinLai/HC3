@@ -68,11 +68,9 @@ def extract_token_prob_features(texts, model, tokenizer, device, batch_size=1, m
             entropy = -(probs * log_probs).sum(dim=-1)   # (T-1)
 
             # Rank of actual token (0-indexed, lower = more expected)
-            sorted_indices = torch.argsort(pred_logits, dim=-1, descending=True)
-            ranks = torch.zeros(T, device=device)
-            for t in range(T):
-                rank_pos = (sorted_indices[t] == target_ids[t]).nonzero(as_tuple=True)[0]
-                ranks[t] = rank_pos[0].float() if len(rank_pos) > 0 else 50000
+            # Vectorized: count how many logits are greater than the target token's logit
+            target_logits = pred_logits.gather(1, target_ids.unsqueeze(1))  # (T, 1)
+            ranks = (pred_logits > target_logits).sum(dim=-1).float()  # (T,)
 
             # Top-1 probability
             top1_prob = probs.max(dim=-1).values  # (T-1)
@@ -80,12 +78,12 @@ def extract_token_prob_features(texts, model, tokenizer, device, batch_size=1, m
             # Top-5 cumulative probability
             top5_prob = torch.topk(probs, k=min(5, probs.shape[-1]), dim=-1).values.sum(dim=-1)
 
-            # Convert to numpy
-            lp = token_log_probs.cpu().numpy()
-            ent = entropy.cpu().numpy()
-            rk = ranks.cpu().numpy()
-            t1p = top1_prob.cpu().numpy()
-            t5p = top5_prob.cpu().numpy()
+            # Convert to numpy (cast to float32 first for bfloat16 compatibility)
+            lp = token_log_probs.float().cpu().numpy()
+            ent = entropy.float().cpu().numpy()
+            rk = ranks.float().cpu().numpy()
+            t1p = top1_prob.float().cpu().numpy()
+            t5p = top5_prob.float().cpu().numpy()
 
             f = {}
             # Log probability stats

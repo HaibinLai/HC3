@@ -274,7 +274,27 @@ Our results support and refine the "predictability hypothesis" for AI detection:
 
 This hypothesis holds strongly for models from the same generation (Mistral detecting ChatGPT/GPT-4) but breaks down across generations (Mistral cannot detect GPT-2 outputs as "predictable").
 
-### 7.3 Implications for the Detection Arms Race
+### 7.3 Observer Model Ablation: Qwen3.5-4B vs Mistral-7B
+
+To test whether our token probability framework is observer-model-agnostic, we replicate all experiments using Qwen3.5-4B (4B parameters, 7.8 GB GPU memory) as an alternative observer, compared to Mistral-7B-Instruct (7B parameters, 13.5 GB).
+
+| Dataset | Mistral-7B (AUC) | Qwen3.5-4B (AUC) | Δ |
+|---------|:-:|:-:|:-:|
+| HC3 | 0.9998 | 0.9994 | −0.0004 |
+| SemEval | 0.9784 | **0.9844** | **+0.0060** |
+| TuringBench | 0.4853 | 0.5549 | +0.0696 |
+| Pile | 0.9918 | **0.9924** | +0.0006 |
+
+![Observer Model Comparison](../figures/token_observer_comparison.png)
+
+**Key findings:**
+
+1. **Observer size is not critical.** Qwen3.5-4B (4B params) matches or slightly exceeds Mistral-7B (7B params) on all datasets, demonstrating that the "LLM as microscope" framework works with smaller models.
+2. **Feature importance patterns differ.** Qwen3.5-4B relies more heavily on `lp_std` (log probability variance), while Mistral-7B favors `rank_top100_frac`. Both capture the predictability gap through different statistical lenses.
+3. **TuringBench remains unsolvable.** Neither observer can detect legacy AI text (both AUC ≈ 0.5), confirming this is a fundamental limitation of the predictability hypothesis for cross-generation detection, not an artifact of model choice.
+4. **Practical implication:** Teams with limited GPU resources can deploy Qwen3.5-4B (7.8 GB) instead of Mistral-7B (13.5 GB) with no detection loss—a 42% reduction in memory requirements.
+
+### 7.4 Implications for the Detection Arms Race
 
 The cross-dataset analysis suggests that as AI models evolve, detection methods must evolve in tandem. Token-level features from a contemporary model are currently the strongest approach, but they are inherently tied to the observer model's generation. Future work should explore observer-agnostic probability features or multi-observer ensembles.
 
@@ -288,7 +308,7 @@ The cross-dataset analysis suggests that as AI models evolve, detection methods 
 
 ## 8. Limitations
 
-1. **Observer model dependency:** Token probability features are tied to Mistral-7B-Instruct; performance may vary with different observer models.
+1. **Observer model dependency:** Token probability features were tested with both Mistral-7B-Instruct and Qwen3.5-4B, showing consistent results (Section 7.3). However, further validation with non-transformer architectures remains needed.
 2. **Adversarial robustness:** We do not evaluate against adversarial attacks (paraphrasing, watermark removal).
 3. **Multilingual scope:** All experiments use English text; generalization to other languages is untested.
 4. **Temporal drift:** As AI models continue to improve, the "predictability gap" may narrow.

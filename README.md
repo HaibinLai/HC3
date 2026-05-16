@@ -614,6 +614,17 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 
 5. **扩展特征显著优于 TF-IDF 基线**。90 个特征的 XGBoost (AUC 0.9999) 远超 17 特征 + TF-IDF 的 LR 基线 (AUC 0.9955)，且特征完全可解释。
 
+6. **观察者模型消融：Qwen3.5-4B (4B) 与 Mistral-7B (7B) 表现相当**。更小的模型同样能充当有效的"显微镜"，且 GPU 内存仅需 7.8 GB（减少 42%）。
+
+| 数据集 | Mistral-7B | Qwen3.5-4B | Δ |
+|--------|:-:|:-:|:-:|
+| HC3 | 0.9998 | 0.9994 | −0.0004 |
+| SemEval | 0.9784 | **0.9844** | **+0.0060** |
+| TuringBench | 0.4853 | 0.5549 | +0.0696 |
+| Pile | 0.9918 | **0.9924** | +0.0006 |
+
+![Observer Model Comparison](figures/token_observer_comparison.png)
+
 ---
 
 ## 11. Files
@@ -636,6 +647,7 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 | `src/run_token_features_ext.py` | Token-level 概率特征 (TuringBench + Pile) |
 | `src/run_token_interpretability.py` | Token 特征可解释性分析 (SHAP + 分布 + 失败分析) |
 | `src/run_token_case_viz.py` | Token 特征 case-level 可视化 (热力图 + t-SNE + 误分类) |
+| `src/run_token_qwen.py` | Qwen3.5-4B 观察者模型对比实验 |
 | `src/data_splits.py` | 共享数据分割工具 |
 | `figures/` | 所有生成的图表 |
 | `reports/project_budget_and_plan.md` | 项目计划与预算 |
