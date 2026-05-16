@@ -565,7 +565,25 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 
 ![SHAP waterfall](figures/token_shap_waterfall.png)
 
-### 9.7 Cross-Dataset Comparison Figures
+### 9.7 Case-level 可视化
+
+#### Token 概率热力图
+
+每个词按 Mistral-7B 的预测概率着色（绿=可预测，红=出人意料），直观看出 AI 文本的"流畅度均匀性" vs 人类文本的"意外用词"。
+
+![Token Heatmap](figures/token_heatmap_cases.png)
+
+#### t-SNE 降维散点图
+
+30 维 token 特征降到 2D。HC3/SemEval/Pile 上 Human 和 AI 明显分离，TuringBench 上完全混杂。
+
+![t-SNE](figures/token_tsne.png)
+
+#### 误分类案例分析
+
+![Misclassification](figures/token_misclassification.png)
+
+### 9.8 Cross-Dataset Comparison Figures
 
 #### SemEval 2024 Task 8
 ![SemEval comparison](figures/semeval_comparison.png)
@@ -611,6 +629,7 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 | `src/run_token_features.py` | Token-level 概率特征 (HC3 + SemEval) |
 | `src/run_token_features_ext.py` | Token-level 概率特征 (TuringBench + Pile) |
 | `src/run_token_interpretability.py` | Token 特征可解释性分析 (SHAP + 分布 + 失败分析) |
+| `src/run_token_case_viz.py` | Token 特征 case-level 可视化 (热力图 + t-SNE + 误分类) |
 | `src/data_splits.py` | 共享数据分割工具 |
 | `figures/` | 所有生成的图表 |
 | `reports/project_budget_and_plan.md` | 项目计划与预算 |
