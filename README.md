@@ -426,10 +426,6 @@ AUC 0.9933，超越所有零样本方法，仅次于 XGBoost (0.9999)。
 
 ### 8.8 Advanced Method Figures
 
-#### Fast-DetectGPT Score Distribution
-
-![DetectGPT analysis](figures/detectgpt_analysis.png)
-
 #### Binoculars Score Distribution
 
 ![Binoculars analysis](figures/binoculars_analysis.png)
