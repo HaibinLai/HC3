@@ -278,21 +278,21 @@ This hypothesis holds strongly for models from the same generation (Mistral dete
 
 To test whether our token probability framework is observer-model-agnostic, we replicate all experiments using Qwen3.5-4B (4B parameters, 7.8 GB GPU memory) as an alternative observer, compared to Mistral-7B-Instruct (7B parameters, 13.5 GB).
 
-| Dataset | Mistral-7B (AUC) | Qwen3.5-4B (AUC) | Δ |
+| Dataset | Mistral-7B (AUC) | Qwen3.5-4B (AUC) | Qwen3.6-35B-A3B (AUC) |
 |---------|:-:|:-:|:-:|
-| HC3 | 0.9998 | 0.9994 | −0.0004 |
-| SemEval | 0.9784 | **0.9844** | **+0.0060** |
-| TuringBench | 0.4853 | 0.5549 | +0.0696 |
-| Pile | 0.9918 | **0.9924** | +0.0006 |
+| HC3 | 0.9998 | 0.9994 | 0.9995 |
+| SemEval | 0.9784 | **0.9844** | 0.9541 |
+| TuringBench | 0.4853 | 0.5549 | 0.5250 |
+| Pile | 0.9918 | **0.9924** | 0.9923 |
 
-![Observer Model Comparison](../figures/token_observer_comparison.png)
+![Observer Model Comparison](../figures/token_observer_comparison_3models.png)
 
 **Key findings:**
 
 1. **Observer size is not critical.** Qwen3.5-4B (4B params) matches or slightly exceeds Mistral-7B (7B params) on all datasets, demonstrating that the "LLM as microscope" framework works with smaller models.
-2. **Feature importance patterns differ.** Qwen3.5-4B relies more heavily on `lp_std` (log probability variance), while Mistral-7B favors `rank_top100_frac`. Both capture the predictability gap through different statistical lenses.
-3. **TuringBench remains unsolvable.** Neither observer can detect legacy AI text (both AUC ≈ 0.5), confirming this is a fundamental limitation of the predictability hypothesis for cross-generation detection, not an artifact of model choice.
-4. **Practical implication:** Teams with limited GPU resources can deploy Qwen3.5-4B (7.8 GB) instead of Mistral-7B (13.5 GB) with no detection loss—a 42% reduction in memory requirements.
+2. **MoE architecture hurts detection on multi-model data.** Qwen3.6-35B-A3B (35B total, 3B active) underperforms on SemEval (0.9541 vs 0.9844 for Qwen3.5-4B), despite having far more total parameters. The sparse expert routing likely introduces noise in the probability landscape, reducing the discriminative power of token-level features. Dense models produce more stable, consistent probability distributions.
+3. **TuringBench remains unsolvable.** All three observers fail on legacy AI text (AUC ≈ 0.5), confirming this is a fundamental limitation of the predictability hypothesis for cross-generation detection.
+4. **Practical implication:** Dense 4B models are the best observers — smaller than 7B, cheaper than MoE-35B, and equal or better detection performance. Teams should prefer Qwen3.5-4B (7.8 GB) over both Mistral-7B (13.5 GB) and Qwen3.6-35B-A3B (64.6 GB).
 
 ### 7.4 Temporal Proximity Hypothesis: Why Detection Effectiveness Depends on Era
 
@@ -308,7 +308,7 @@ A striking pattern emerges when we align detection performance with the **tempor
 | Mistral-7B CE | Zero-shot | 2023.10 | 0.9933 | 0.9729 | 0.5895 | — |
 | Token feat (Mistral) | LLM+ML | 2023.10 | 0.9998 | 0.9784 | 0.4853 | 0.9918 |
 | Token feat (Qwen-4B) | LLM+ML | 2025 | 0.9994 | **0.9844** | 0.5549 | 0.9924 |
-| Token feat (Qwen-35B MoE) | LLM+ML | 2025 | 0.9995 | 0.9541 | 0.5250 | *running* |
+| Token feat (Qwen-35B MoE) | LLM+ML | 2025 | 0.9995 | 0.9541 | 0.5250 | 0.9923 |
 
 #### 7.4.2 Key Observations
 

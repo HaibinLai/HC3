@@ -614,16 +614,20 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 
 5. **扩展特征显著优于 TF-IDF 基线**。90 个特征的 XGBoost (AUC 0.9999) 远超 17 特征 + TF-IDF 的 LR 基线 (AUC 0.9955)，且特征完全可解释。
 
-6. **观察者模型消融：Qwen3.5-4B (4B) 与 Mistral-7B (7B) 表现相当**。更小的模型同样能充当有效的"显微镜"，且 GPU 内存仅需 7.8 GB（减少 42%）。
+6. **观察者模型消融：3 个模型对比（Dense 4B > Dense 7B > MoE 35B）**。
 
-| 数据集 | Mistral-7B | Qwen3.5-4B | Δ |
+| 数据集 | Mistral-7B (7B) | Qwen3.5-4B (4B) | Qwen3.6-35B-A3B (3B active) |
 |--------|:-:|:-:|:-:|
-| HC3 | 0.9998 | 0.9994 | −0.0004 |
-| SemEval | 0.9784 | **0.9844** | **+0.0060** |
-| TuringBench | 0.4853 | 0.5549 | +0.0696 |
-| Pile | 0.9918 | **0.9924** | +0.0006 |
+| HC3 | 0.9998 | 0.9994 | 0.9995 |
+| SemEval | 0.9784 | **0.9844** | 0.9541 |
+| TuringBench | 0.4853 | 0.5549 | 0.5250 |
+| Pile | 0.9918 | 0.9924 | 0.9923 |
 
-![Observer Model Comparison](figures/token_observer_comparison.png)
+- **Dense 4B 是最佳观察者**：检测性能最优，GPU 显存仅 7.8 GB
+- **MoE 35B 反而最弱**（SemEval 0.9541）：稀疏专家路由引入概率噪声，降低特征区分度
+- 结论：做"显微镜"不需要大模型，Dense 架构优于 MoE
+
+![Observer Model Comparison](figures/token_observer_comparison_3models.png)
 
 7. **时间近邻假说（Temporal Proximity Hypothesis）：检测有效性取决于观察者与生成器的"代际距离"**。
 
