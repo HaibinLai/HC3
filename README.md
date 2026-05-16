@@ -504,7 +504,29 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
    - 未知/多种现代 AI 模型 → Mistral-7B CE（AUC 0.97）
    - 资源受限 → Fast-DetectGPT（轻量零样本）
 
-### 9.5 Cross-Dataset Comparison Figures
+### 9.5 Token-level Probability Features (Inspired by SemEval Champion)
+
+借鉴 SemEval-2024 Task 8 冠军 Genaios 的方法，从 Mistral-7B-Instruct 提取 **30 个 token-level 概率特征**：
+
+- **Log probability 统计**：mean, std, min, max, median, q10, q90, skew, kurtosis
+- **Entropy 统计**：mean, std, min, max, median, skew
+- **Token rank 统计**：mean, std, median, q90, top-1/5/10/100 fraction
+- **Top-k probability**：top1/top5 mean & std
+- **Burstiness**：log prob 差分的 mean/std
+
+| 方法 | HC3 AUC | SemEval AUC |
+|------|---------|-------------|
+| XGBoost (90 CPU 特征) | 0.9999 | 0.6872 |
+| Fast-DetectGPT | 0.9292 | 0.8068 |
+| Mistral CE (1 个标量) | 0.9933 | 0.9729 |
+| **Token-only (30 特征)** | **0.9998** | **0.9784** 🏆 |
+| Combined (120 特征) | 0.9999 | 0.8956 |
+
+**Token-only 30 特征在 SemEval 上 AUC 0.9784，是所有方法中最高的。** 最重要的特征是 `rank_q90`（第 90 百分位 token rank）和 `lp_q10`（第 10 百分位 log probability），它们捕获了"最不可预测的 token"的行为模式——AI 文本中即使最"出人意料"的 token 也有较高概率，而人类文本中存在更多真正意想不到的用词。
+
+![Token features comparison](figures/token_features_comparison.png)
+
+### 9.6 Cross-Dataset Comparison Figures
 
 #### SemEval 2024 Task 8
 ![SemEval comparison](figures/semeval_comparison.png)
