@@ -533,7 +533,41 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
 
 ![Token features comparison](figures/token_features_full_comparison.png)
 
-### 9.6 Cross-Dataset Comparison Figures
+### 9.6 Token 特征可解释性分析
+
+#### SHAP 特征归因对比（4 数据集）
+
+通过 SHAP TreeExplainer 分析 XGBoost 在不同数据集上依赖的关键 token 特征：
+
+![SHAP comparison](figures/token_shap_comparison.png)
+
+**跨数据集 SHAP 分析揭示的模式：**
+- **HC3**：`rank_top1_frac`（top-1 命中率）和 `lp_mean`（平均 log prob）最重要，ChatGPT 文本的 token 更可预测
+- **SemEval**：`rank_top100_frac` 和 `ent_mean`（平均熵）主导，现代多模型场景需要更粗粒度的概率特征
+- **Pile**：`rank_top100_frac` 独占 45% 重要性，是最强的单一判别信号
+- **TuringBench**：所有特征重要性均匀分散、无突出特征，说明模型无法找到有效区分信号
+
+#### Human vs AI 特征分布对比
+
+![Feature distributions](figures/token_feature_distributions.png)
+
+SemEval 和 Pile 上 Human/AI 分布有明显分离，而 TuringBench 上两类分布几乎完全重叠。
+
+#### TuringBench 失败原因分析
+
+![TuringBench per-model](figures/token_turingbench_permodel.png)
+
+TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 视角下的 token 概率分布与人类文本几乎无法区分。这是因为 Mistral-7B 对这些旧模型的"生成指纹"不敏感——它们的输出文本在概率空间中与人类文本位于相似区域。
+
+#### 30 维 Token 特征相关矩阵
+
+![Feature correlation](figures/token_feature_correlation.png)
+
+#### 单样本 SHAP 归因（Waterfall）
+
+![SHAP waterfall](figures/token_shap_waterfall.png)
+
+### 9.7 Cross-Dataset Comparison Figures
 
 #### SemEval 2024 Task 8
 ![SemEval comparison](figures/semeval_comparison.png)
@@ -578,6 +612,7 @@ XGBoost 在 TuringBench 的 19 种模型上均达到 AUC > 0.96：
 | `src/run_pile.py` | AI Text Detection Pile 跨数据集实验 |
 | `src/run_token_features.py` | Token-level 概率特征 (HC3 + SemEval) |
 | `src/run_token_features_ext.py` | Token-level 概率特征 (TuringBench + Pile) |
+| `src/run_token_interpretability.py` | Token 特征可解释性分析 (SHAP + 分布 + 失败分析) |
 | `src/data_splits.py` | 共享数据分割工具 |
 | `figures/` | 所有生成的图表 |
 | `reports/project_budget_and_plan.md` | 项目计划与预算 |
