@@ -1,2 +1,0 @@
-method,models,auc,accuracy,n_test
-Binoculars,gpt2-medium / gpt2-large,0.7995304033198299,0.8140691753965003,17087

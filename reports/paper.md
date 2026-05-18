@@ -178,7 +178,9 @@ The central result of this study is the cross-dataset evaluation:
 | RoBERTa fine-tune | 0.9980 | 0.6801 | 0.6047 | 0.9708 |
 | Fast-DetectGPT | 0.9292 | 0.8068 | 0.6038 | 0.8889 |
 | Mistral-7B CE | 0.9933 | 0.9729 | 0.5895 | — |
-| Token-only (30 feat) | 0.9998 | **0.9784** | 0.4853 | **0.9918** |
+| Token feat (Mistral-7B) | 0.9998 | 0.9784 | 0.4853 | 0.9918 |
+| Token feat (Qwen3.5-4B) | 0.9994 | **0.9844** | 0.5549 | **0.9924** |
+| Token feat (Qwen3.6-35B MoE) | 0.9995 | 0.9541 | 0.5250 | 0.9923 |
 
 Three distinct performance regimes emerge:
 
