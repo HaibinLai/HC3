@@ -304,6 +304,27 @@ ChatGPT 类），颜色表示特征原始值的高低。
 
 ![SHAP summary](figures/shap_summary.png)
 
+### 7.5b SHAP Dependence Plots (Top 6 特征)
+
+展示 top-6 特征值如何影响 SHAP 值（即模型预测），颜色为最强交互特征。每个点是一个样本。
+
+- **`gpt2_perplexity`**：低困惑度（< 50）时 SHAP 强正值→预测为 AI；高困惑度时 SHAP 负值→预测为人类。存在清晰的阈值效应。
+- **`log_perplexity`**：与 `gpt2_perplexity` 高度相关但提供对数视角，捕获长尾分布差异。
+- **`automated_readability_index`**：ARI > 10 时开始推向 AI 预测，反映 AI 文本更复杂的句子结构。
+
+![SHAP Dependence](figures/shap_dependence_90feat.png)
+
+### 7.5c SHAP Waterfall Plots (个案归因)
+
+对 4 个代表性样本展示 90 个特征如何逐步推动最终预测：
+
+1. **正确人类样本**（最自信）：`gpt2_perplexity` 高 → 强负 SHAP → P(AI)≈0
+2. **正确 AI 样本**（最自信）：`gpt2_perplexity` 低 + `paragraph_count` 多 → 强正 SHAP → P(AI)≈1
+3. **假阳性**（人类误判为 AI）：该人类文本恰好困惑度低、结构规整，"看起来像 AI"
+4. **假阴性**（AI 误判为人类）：该 AI 文本困惑度偏高、风格不典型，"不像 AI"
+
+![SHAP Waterfall](figures/shap_waterfall_90feat.png)
+
 ### 7.6 LR Top-20 Feature Coefficients
 
 Logistic Regression 标准化系数的 Top-20。正系数指向 ChatGPT，负系数指向人类。
@@ -665,6 +686,8 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 | `src/run_token_interpretability.py` | Token 特征可解释性分析 (SHAP + 分布 + 失败分析) |
 | `src/run_token_case_viz.py` | Token 特征 case-level 可视化 (热力图 + t-SNE + 误分类) |
 | `src/run_token_qwen.py` | Qwen3.5-4B 观察者模型对比实验 |
+| `src/run_token_qwen35b.py` | Qwen3.6-35B-A3B (MoE) 观察者模型对比实验 |
+| `src/run_shap_deep.py` | 90 特征深度 SHAP 分析 (依赖图 + 个案归因) |
 | `src/data_splits.py` | 共享数据分割工具 |
 | `figures/` | 所有生成的图表 |
 | `reports/project_budget_and_plan.md` | 项目计划与预算 |

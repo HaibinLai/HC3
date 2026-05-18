@@ -213,7 +213,31 @@ More training data marginally helps on SemEval but *hurts* on TuringBench, where
 
 ## 6. Interpretability Analysis
 
-### 6.1 SHAP Feature Attribution
+### 6.1 SHAP Feature Attribution (90 Handcrafted Features)
+
+For the 90-feature XGBoost model (AUC 0.9999 on HC3), we compute SHAP values using TreeExplainer on 2,000 randomly sampled training instances.
+
+**SHAP Dependence Plots** reveal how individual feature values drive predictions:
+
+![SHAP Dependence](../figures/shap_dependence_90feat.png)
+
+- **`gpt2_perplexity`** is the dominant feature: below ~50, SHAP values are strongly positive (→ AI prediction); above ~100, strongly negative (→ human). This confirms the "predictability hypothesis" at the statistical feature level.
+- **`log_perplexity`** provides a complementary log-scale view, capturing differences in the heavy tail of the perplexity distribution.
+- **`automated_readability_index`** shows a gradual positive trend: AI text is systematically more "readable" at a formal level (longer sentences, more complex vocabulary), which paradoxically makes it detectable.
+
+**SHAP Waterfall Plots** decompose individual predictions into per-feature contributions:
+
+![SHAP Waterfall](../figures/shap_waterfall_90feat.png)
+
+We examine four representative cases:
+1. **Correct human** (most confident): High `gpt2_perplexity` pushes SHAP strongly negative → P(AI) ≈ 0.
+2. **Correct AI** (most confident): Low `gpt2_perplexity` + high `paragraph_count` push SHAP strongly positive → P(AI) ≈ 1.
+3. **False positive** (human misclassified as AI): A human text with unusually low perplexity and structured format—it "looks like AI" to the model.
+4. **False negative** (AI misclassified as human): An AI text with atypically high perplexity and informal style—it "doesn't look like AI."
+
+These waterfall plots provide the quantitative attribution required for forensic AI text analysis: each prediction can be traced to specific linguistic properties.
+
+### 6.2 SHAP Feature Attribution (30 Token Probability Features)
 
 We compute SHAP values (Lundberg & Lee, 2017) for XGBoost models trained on token-level features across all four datasets.
 
