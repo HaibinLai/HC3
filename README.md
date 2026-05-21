@@ -465,7 +465,7 @@ AUC 0.9933，超越所有零样本方法，仅次于 XGBoost (0.9999)。
 
 ## 9. Cross-Dataset Generalization Study
 
-为验证各方法的泛化能力，我们在 **4 个数据集** 上运行了相同的 3 种方法（XGBoost 90特征、RoBERTa fine-tune、Fast-DetectGPT）。
+为验证各方法的泛化能力，我们在 **5 个数据集** 上运行了相同的方法（XGBoost 90特征、Token 概率特征、RoBERTa fine-tune、Fast-DetectGPT）。
 
 ### 9.1 Datasets
 
@@ -475,6 +475,7 @@ AUC 0.9933，超越所有零样本方法，仅次于 XGBoost (0.9999)。
 | SemEval 2024 Task 8 | 120K train / 34K test | ChatGPT, GPT-4, davinci, bloomz, cohere, dolly | WikiHow, Reddit, arXiv, Wikipedia, PeerRead |
 | TuringBench | 200K+ | 19 种模型（GPT-1/2/3, Grover, XLNet, CTRL 等） | 新闻 |
 | AI Text Detection Pile | 1.39M (采样 100K) | 混合 AI 模型 | 学术写作 |
+| **RAID (ACL 2024)** | **468K** | **11 种模型（GPT-4, ChatGPT, Llama-2-70B, Mistral-7B, MPT-30B, Cohere, GPT-2/3）** | **8 领域 + 11 种对抗攻击** |
 
 ### 9.2 Cross-Dataset Results (AUC)
 
@@ -484,6 +485,7 @@ AUC 0.9933，超越所有零样本方法，仅次于 XGBoost (0.9999)。
 | SemEval 2024 | 0.6872 | 0.6801 | 0.8068 | 0.9729 | 0.9784 | **0.9844** 🏆 | 0.9541 |
 | TuringBench | **0.9841** | 0.6047 | 0.6038 | 0.5895 | 0.4853 | 0.5549 | 0.5250 |
 | AI Detection Pile | 0.9831 | 0.9708 | 0.8889 | — | 0.9918 | **0.9924** | 0.9923 |
+| **RAID** | **0.9951** | — | 0.7815 | — | 0.9900 | — | — |
 
 ### 9.3 Per-Model Analysis (TuringBench XGBoost)
 
@@ -621,6 +623,68 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 #### AI Text Detection Pile
 ![Pile comparison](figures/pile_comparison.png)
 
+### 9.9 RAID Benchmark (ACL 2024) — 对抗鲁棒性分析
+
+RAID 是目前最全面的 AI 文本检测基准（Dugan et al., ACL 2024），覆盖 **11 个生成器**（GPT-4, ChatGPT, Llama-2-70B, Mistral-7B, MPT-30B, Cohere, GPT-2/3）、**8 个领域**（arXiv, 食谱, Reddit, 书评, 新闻, 诗歌, 影评, Wikipedia）和 **11 种对抗攻击**。
+
+#### RAID 方法对比
+
+| 方法 | AUC | Accuracy |
+|------|-----|----------|
+| **XGBoost (90 特征)** | **0.9951** | **0.9714** |
+| Token features (Mistral-7B) | 0.9900 | 0.9590 |
+| Fast-DetectGPT (零样本) | 0.7815 | 0.7452 |
+
+XGBoost 在 RAID 的 11 个生成器上表现优异（AUC 0.9951），显著优于 Fast-DetectGPT。
+
+#### Per-Model 检测准确率 (XGBoost)
+
+| 生成器 | Accuracy | 生成器 | Accuracy |
+|--------|----------|--------|----------|
+| ChatGPT | 96.2% | GPT-4 | 77.3% |
+| GPT-3 | 94.5% | Llama-2-70B-Chat | 86.1% |
+| Cohere-Chat | 84.4% | Mistral-7B-Chat | 82.0% |
+| Cohere | 77.9% | MPT-30B | 47.4% |
+| GPT-2 XL | 79.9% | MPT-30B-Chat | 64.0% |
+| Mistral-7B | 59.5% | | |
+
+#### Per-Domain AUC (XGBoost)
+
+| 领域 | AUC | 领域 | AUC |
+|------|-----|------|-----|
+| wiki | 0.8441 | reviews | 0.8412 |
+| books | 0.8214 | reddit | 0.8214 |
+| news | 0.8126 | abstracts | 0.7833 |
+| recipes | 0.7407 | **poetry** | **0.6137** |
+
+诗歌领域 AUC 最低（0.61），因为诗歌的人类文本本身就高度风格化，与 AI 文本的统计特征差异较小。
+
+#### 对抗攻击鲁棒性分析
+
+| 攻击方式 | AUC | AUC 下降 | 评价 |
+|----------|-----|----------|------|
+| insert_paragraphs | 0.9915 | -0.004 | ✅ 几乎无影响 |
+| whitespace | 0.9701 | -0.025 | ✅ 鲁棒 |
+| alternative_spelling | 0.9686 | -0.027 | ✅ 鲁棒 |
+| perplexity_misspelling | 0.9682 | -0.027 | ✅ 鲁棒 |
+| upper_lower | 0.9680 | -0.027 | ✅ 鲁棒 |
+| number | 0.9686 | -0.027 | ✅ 鲁棒 |
+| synonym | 0.9660 | -0.029 | ✅ 鲁棒 |
+| article_deletion | 0.9676 | -0.028 | ✅ 鲁棒 |
+| homoglyph | 0.9516 | -0.044 | ⚠️ 轻微下降 |
+| **zero_width_space** | **0.8424** | **-0.153** | ❌ 显著下降 |
+| **paraphrase** | **0.7902** | **-0.205** | ❌ 最致命攻击 |
+
+**关键发现**：
+1. **释义攻击（paraphrase）是最有效的规避手段**，AUC 下降 20.5%。释义重写改变了文本的词汇和句法结构，破坏了大多数统计特征的判别力。
+2. **零宽空格攻击**出乎意料地有效（AUC 下降 15.3%），这种不可见字符干扰了基于字符计数的特征。
+3. **大多数表面攻击（拼写、大小写、数字替换等）对 XGBoost 几乎无效**，因为 90 维特征中大量是语义和统计特征，不受字符级干扰影响。
+4. **对抗鲁棒的检测系统应结合语义特征**，而非仅依赖表面统计。
+
+![RAID comparison](figures/raid_comparison.png)
+
+![RAID adversarial](figures/raid_adversarial.png)
+
 ---
 
 ## 10. Key Findings
@@ -681,6 +745,7 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 | `src/run_semeval.py` | SemEval 2024 Task 8 跨数据集实验 |
 | `src/run_turingbench.py` | TuringBench 跨数据集实验 |
 | `src/run_pile.py` | AI Text Detection Pile 跨数据集实验 |
+| `src/run_raid.py` | RAID Benchmark 实验（11 生成器 + 11 对抗攻击） |
 | `src/run_token_features.py` | Token-level 概率特征 (HC3 + SemEval) |
 | `src/run_token_features_ext.py` | Token-level 概率特征 (TuringBench + Pile) |
 | `src/run_token_interpretability.py` | Token 特征可解释性分析 (SHAP + 分布 + 失败分析) |
