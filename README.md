@@ -685,6 +685,84 @@ XGBoost 在 RAID 的 11 个生成器上表现优异（AUC 0.9951），显著优�
 
 ![RAID adversarial](figures/raid_adversarial.png)
 
+#### RAID 深度分析与可解释性
+
+##### 特征消融实验
+
+与 HC3 不同，**RAID 上 GPT-2 困惑度完全失效**（AUC 0.4920，低于随机），因为 RAID 包含 11 种不同生成器，GPT-2 困惑度无法统一判别。**基础计数特征（word_count 等）反而最强**（AUC 0.9719），说明不同模型生成文本的长度分布差异是最稳定的跨模型信号。
+
+| 特征组 | 特征数 | AUC | vs HC3 对比 |
+|--------|--------|-----|-------------|
+| **basic_counts** | 4 | **0.9719** | HC3: 0.9204（↑显著） |
+| averages | 4 | 0.9665 | HC3: 0.9021（↑显著） |
+| punctuation | 11 | 0.8617 | HC3: 0.9207（↓） |
+| lexical_richness | 7 | 0.8503 | HC3: 0.9367（↓） |
+| embedding_pca | 50 | 0.7624 | HC3: 0.8972（↓） |
+| readability | 7 | 0.6966 | HC3: 0.9741（↓显著） |
+| variability | 2 | 0.6830 | HC3: 0.8987（↓） |
+| structure | 1 | 0.5955 | HC3: 0.8965（↓） |
+| **perplexity** | 2 | **0.4920** | HC3: **0.9912**（↓↓↓ 完全失效） |
+
+![RAID feature ablation](figures/raid_feature_ablation.png)
+
+##### SHAP 归因分析
+
+![RAID SHAP summary](figures/raid_shap_summary.png)
+
+![RAID SHAP dependence](figures/raid_shap_dependence.png)
+
+![RAID SHAP waterfall](figures/raid_shap_waterfall.png)
+
+##### 领域特征对比 (8 domains)
+
+![RAID domain comparison](figures/raid_domain_feature_comparison.png)
+
+##### PCA & t-SNE
+
+![RAID PCA](figures/raid_pca.png)
+
+![RAID t-SNE](figures/raid_tsne.png)
+
+##### LR 系数
+
+![RAID LR coefficients](figures/raid_lr_coefficients.png)
+
+##### 特征相关性
+
+![RAID correlation](figures/raid_correlation_heatmap.png)
+
+##### Token 特征可解释性
+
+![RAID token SHAP](figures/raid_token_shap.png)
+
+![RAID token distributions](figures/raid_token_distributions.png)
+
+![RAID per-model features](figures/raid_per_model_features.png)
+
+##### Token 概率热力图
+
+![RAID token heatmap](figures/raid_token_heatmap.png)
+
+##### Token t-SNE & 误分类分析
+
+![RAID token t-SNE](figures/raid_token_tsne.png)
+
+![RAID misclassification](figures/raid_misclassification.png)
+
+##### RAID 独有分析
+
+**Model × Domain 检测准确率热力图**：
+
+![RAID model domain heatmap](figures/raid_model_domain_heatmap.png)
+
+**解码策略对特征的影响**：
+
+![RAID decoding comparison](figures/raid_decoding_comparison.png)
+
+**对抗攻击特征偏移（Paraphrase）**：
+
+![RAID attack feature shift](figures/raid_attack_feature_shift.png)
+
 ---
 
 ## 10. Key Findings
@@ -746,6 +824,7 @@ XGBoost 在 RAID 的 11 个生成器上表现优异（AUC 0.9951），显著优�
 | `src/run_turingbench.py` | TuringBench 跨数据集实验 |
 | `src/run_pile.py` | AI Text Detection Pile 跨数据集实验 |
 | `src/run_raid.py` | RAID Benchmark 实验（11 生成器 + 11 对抗攻击） |
+| `src/run_raid_analysis.py` | RAID 深度分析与可解释性（SHAP、消融、热力图等 20 张图） |
 | `src/run_token_features.py` | Token-level 概率特征 (HC3 + SemEval) |
 | `src/run_token_features_ext.py` | Token-level 概率特征 (TuringBench + Pile) |
 | `src/run_token_interpretability.py` | Token 特征可解释性分析 (SHAP + 分布 + 失败分析) |
