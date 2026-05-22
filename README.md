@@ -625,9 +625,7 @@ TuringBench 的 19 个旧 AI 模型（GPT-2、XLNet、CTRL 等）在 Mistral-7B 
 
 ### 9.9 RAID Benchmark (ACL 2024) — 对抗鲁棒性分析
 
-RAID 是目前最全面的 AI 文本检测基准（Dugan et al., ACL 2024），覆盖 **11 个生成器**（GPT-4, ChatGPT, Llama-2-70B, Mistral-7B, MPT-30B, Cohere, GPT-2/3）、**8 个领域**（arXiv, 食谱, Reddit, 书评, 新闻, 诗歌, 影评, Wikipedia）和 **11 种对抗攻击**。
-
-#### RAID 方法对比
+RAID 是目前最全面的 AI 文本检测基准（Dugan et al., ACL 2024），覆盖 **11 个生成器**、**8 个领域**和 **11 种对抗攻击**。
 
 | 方法 | AUC | Accuracy |
 |------|-----|----------|
@@ -635,133 +633,11 @@ RAID 是目前最全面的 AI 文本检测基准（Dugan et al., ACL 2024），�
 | Token features (Mistral-7B) | 0.9900 | 0.9590 |
 | Fast-DetectGPT (零样本) | 0.7815 | 0.7452 |
 
-XGBoost 在 RAID 的 11 个生成器上表现优异（AUC 0.9951），显著优于 Fast-DetectGPT。
-
-#### Per-Model 检测准确率 (XGBoost)
-
-| 生成器 | Accuracy | 生成器 | Accuracy |
-|--------|----------|--------|----------|
-| ChatGPT | 96.2% | GPT-4 | 77.3% |
-| GPT-3 | 94.5% | Llama-2-70B-Chat | 86.1% |
-| Cohere-Chat | 84.4% | Mistral-7B-Chat | 82.0% |
-| Cohere | 77.9% | MPT-30B | 47.4% |
-| GPT-2 XL | 79.9% | MPT-30B-Chat | 64.0% |
-| Mistral-7B | 59.5% | | |
-
-#### Per-Domain AUC (XGBoost)
-
-| 领域 | AUC | 领域 | AUC |
-|------|-----|------|-----|
-| wiki | 0.8441 | reviews | 0.8412 |
-| books | 0.8214 | reddit | 0.8214 |
-| news | 0.8126 | abstracts | 0.7833 |
-| recipes | 0.7407 | **poetry** | **0.6137** |
-
-诗歌领域 AUC 最低（0.61），因为诗歌的人类文本本身就高度风格化，与 AI 文本的统计特征差异较小。
-
-#### 对抗攻击鲁棒性分析
-
-| 攻击方式 | AUC | AUC 下降 | 评价 |
-|----------|-----|----------|------|
-| insert_paragraphs | 0.9915 | -0.004 | ✅ 几乎无影响 |
-| whitespace | 0.9701 | -0.025 | ✅ 鲁棒 |
-| alternative_spelling | 0.9686 | -0.027 | ✅ 鲁棒 |
-| perplexity_misspelling | 0.9682 | -0.027 | ✅ 鲁棒 |
-| upper_lower | 0.9680 | -0.027 | ✅ 鲁棒 |
-| number | 0.9686 | -0.027 | ✅ 鲁棒 |
-| synonym | 0.9660 | -0.029 | ✅ 鲁棒 |
-| article_deletion | 0.9676 | -0.028 | ✅ 鲁棒 |
-| homoglyph | 0.9516 | -0.044 | ⚠️ 轻微下降 |
-| **zero_width_space** | **0.8424** | **-0.153** | ❌ 显著下降 |
-| **paraphrase** | **0.7902** | **-0.205** | ❌ 最致命攻击 |
-
-**关键发现**：
-1. **释义攻击（paraphrase）是最有效的规避手段**，AUC 下降 20.5%。释义重写改变了文本的词汇和句法结构，破坏了大多数统计特征的判别力。
-2. **零宽空格攻击**出乎意料地有效（AUC 下降 15.3%），这种不可见字符干扰了基于字符计数的特征。
-3. **大多数表面攻击（拼写、大小写、数字替换等）对 XGBoost 几乎无效**，因为 90 维特征中大量是语义和统计特征，不受字符级干扰影响。
-4. **对抗鲁棒的检测系统应结合语义特征**，而非仅依赖表面统计。
+**关键发现**：释义攻击（paraphrase）是最致命的规避手段（AUC 下降 20.5%）；GPT-2 困惑度在多生成器场景完全失效（AUC 0.49）；基础计数特征反而最稳定（AUC 0.97）。
 
 ![RAID comparison](figures/raid_comparison.png)
 
-![RAID adversarial](figures/raid_adversarial.png)
-
-#### RAID 深度分析与可解释性
-
-##### 特征消融实验
-
-与 HC3 不同，**RAID 上 GPT-2 困惑度完全失效**（AUC 0.4920，低于随机），因为 RAID 包含 11 种不同生成器，GPT-2 困惑度无法统一判别。**基础计数特征（word_count 等）反而最强**（AUC 0.9719），说明不同模型生成文本的长度分布差异是最稳定的跨模型信号。
-
-| 特征组 | 特征数 | AUC | vs HC3 对比 |
-|--------|--------|-----|-------------|
-| **basic_counts** | 4 | **0.9719** | HC3: 0.9204（↑显著） |
-| averages | 4 | 0.9665 | HC3: 0.9021（↑显著） |
-| punctuation | 11 | 0.8617 | HC3: 0.9207（↓） |
-| lexical_richness | 7 | 0.8503 | HC3: 0.9367（↓） |
-| embedding_pca | 50 | 0.7624 | HC3: 0.8972（↓） |
-| readability | 7 | 0.6966 | HC3: 0.9741（↓显著） |
-| variability | 2 | 0.6830 | HC3: 0.8987（↓） |
-| structure | 1 | 0.5955 | HC3: 0.8965（↓） |
-| **perplexity** | 2 | **0.4920** | HC3: **0.9912**（↓↓↓ 完全失效） |
-
-![RAID feature ablation](figures/raid_feature_ablation.png)
-
-##### SHAP 归因分析
-
-![RAID SHAP summary](figures/raid_shap_summary.png)
-
-![RAID SHAP dependence](figures/raid_shap_dependence.png)
-
-![RAID SHAP waterfall](figures/raid_shap_waterfall.png)
-
-##### 领域特征对比 (8 domains)
-
-![RAID domain comparison](figures/raid_domain_feature_comparison.png)
-
-##### PCA & t-SNE
-
-![RAID PCA](figures/raid_pca.png)
-
-![RAID t-SNE](figures/raid_tsne.png)
-
-##### LR 系数
-
-![RAID LR coefficients](figures/raid_lr_coefficients.png)
-
-##### 特征相关性
-
-![RAID correlation](figures/raid_correlation_heatmap.png)
-
-##### Token 特征可解释性
-
-![RAID token SHAP](figures/raid_token_shap.png)
-
-![RAID token distributions](figures/raid_token_distributions.png)
-
-![RAID per-model features](figures/raid_per_model_features.png)
-
-##### Token 概率热力图
-
-![RAID token heatmap](figures/raid_token_heatmap.png)
-
-##### Token t-SNE & 误分类分析
-
-![RAID token t-SNE](figures/raid_token_tsne.png)
-
-![RAID misclassification](figures/raid_misclassification.png)
-
-##### RAID 独有分析
-
-**Model × Domain 检测准确率热力图**：
-
-![RAID model domain heatmap](figures/raid_model_domain_heatmap.png)
-
-**解码策略对特征的影响**：
-
-![RAID decoding comparison](figures/raid_decoding_comparison.png)
-
-**对抗攻击特征偏移（Paraphrase）**：
-
-![RAID attack feature shift](figures/raid_attack_feature_shift.png)
+📄 **完整分析报告**（含 20 张图表、SHAP 归因、消融实验、对抗攻击、领域分析等）：**[reports/raid_analysis.md](reports/raid_analysis.md)**
 
 ---
 
@@ -834,6 +710,7 @@ XGBoost 在 RAID 的 11 个生成器上表现优异（AUC 0.9951），显著优�
 | `src/run_shap_deep.py` | 90 特征深度 SHAP 分析 (依赖图 + 个案归因) |
 | `src/data_splits.py` | 共享数据分割工具 |
 | `figures/` | 所有生成的图表 |
+| `reports/raid_analysis.md` | RAID 完整分析报告（独立子项目文档） |
 | `reports/project_budget_and_plan.md` | 项目计划与预算 |
 
 ## 10. Run
