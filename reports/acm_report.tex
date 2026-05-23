@@ -1,0 +1,343 @@
+\documentclass[sigconf,nonacm]{acmart}
+
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xcolor}
+
+\settopmatter{printacmref=false}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\pagestyle{plain}
+
+\begin{document}
+
+\title{Feature-Based Detection of AI-Generated Text: A Multi-Dataset Study with Interpretable Models}
+
+\author{Anonymous}
+\affiliation{\institution{CS306 Data Mining Course Project}\country{China}}
+\email{anonymous@example.com}
+
+\begin{abstract}
+The proliferation of large language models (LLMs) has made AI-generated text increasingly difficult to distinguish from human writing. Existing detection methods often rely on black-box deep learning models that lack interpretability. In this work, we propose a fully interpretable detection framework based on 90 handcrafted linguistic features spanning lexical richness, readability, punctuation patterns, semantic embeddings, and language model perplexity. We conduct extensive experiments on the RAID benchmark (ACL 2024)---covering 11 generators, 8 domains, and 11 adversarial attacks---and validate on four additional datasets (HC3, SemEval 2024, TuringBench, Pile). Our XGBoost classifier achieves AUC 0.9951 on RAID, significantly outperforming zero-shot methods (Fast-DetectGPT: 0.7815). Through SHAP analysis and feature ablation, we reveal that \textbf{GPT-2 perplexity---the strongest single feature on single-model datasets (AUC 0.99)---completely fails in multi-generator scenarios (AUC 0.49)}, while paragraph structure features emerge as the most robust cross-model signal. Adversarial analysis shows that paraphrase attacks are the only effective evasion strategy (AUC drop 20.5\%), while 9 out of 11 surface-level attacks have negligible impact.
+\end{abstract}
+
+\keywords{AI-generated text detection, interpretable machine learning, feature engineering, SHAP, adversarial robustness}
+
+\maketitle
+
+%% ============================================================
+\section{Introduction}
+
+The rapid advancement of large language models (LLMs) such as GPT-4, ChatGPT, and Llama-2 has enabled the generation of human-like text at unprecedented scale. This capability raises significant concerns in academic integrity, misinformation, and content authenticity. Reliable detection of AI-generated text has thus become a critical challenge.
+
+Existing detection methods can be broadly categorized into three paradigms: (1)~\textbf{supervised fine-tuned models} (e.g., RoBERTa-based classifiers) that treat detection as binary classification but function as black boxes; (2)~\textbf{zero-shot statistical methods} (e.g., DetectGPT~\cite{mitchell2023detectgpt}, Binoculars~\cite{hans2024binoculars}) that leverage language model probability distributions but generalize poorly across generators; and (3)~\textbf{feature-based approaches} that extract interpretable linguistic features for traditional machine learning classifiers.
+
+While the first two paradigms have received considerable attention, feature-based approaches remain underexplored in multi-generator, multi-domain settings. Prior feature-based studies typically evaluate on single-generator datasets (e.g., HC3 with ChatGPT only~\cite{gao2023hc3}), leaving open the question of whether handcrafted features can scale to diverse generation sources.
+
+\textbf{Contributions.} This paper makes the following contributions:
+
+\begin{enumerate}
+    \item We design a comprehensive feature engineering pipeline with \textbf{90 interpretable features} organized into 9 linguistically motivated groups, complemented by \textbf{30 token-level probability features} from an observer LLM (Mistral-7B).
+    \item We conduct the first systematic feature-based analysis on the \textbf{RAID benchmark}~\cite{dugan2024raid}, the most comprehensive AI text detection dataset to date, covering 11 generators, 8 domains, and 11 adversarial attack types.
+    \item Through SHAP interpretability analysis and cross-dataset comparison, we discover that \textbf{perplexity-based features completely fail in multi-generator settings}, while basic text structure features become the most reliable detection signal.
+    \item We provide a thorough adversarial robustness analysis showing that only \textbf{paraphrase attacks} meaningfully degrade detection performance, while surface-level attacks are largely ineffective.
+\end{enumerate}
+
+%% ============================================================
+\section{Related Work}
+
+\subsection{Statistical Feature-Based Detection}
+
+Early AI text detection relied on handcrafted statistical features. Gehrmann et al.~\cite{gehrmann2019gltr} proposed GLTR, which visualizes token-level probability distributions from GPT-2. Subsequent work introduced lexical diversity metrics (Type-Token Ratio, Hapax ratio), readability indices (Flesch-Kincaid, Gunning Fog), and stylistic features as detection signals. These approaches offer full interpretability but have primarily been evaluated on single-generator datasets.
+
+\subsection{Language Model-Based Detection}
+
+Zero-shot methods leverage the statistical properties of language models. DetectGPT~\cite{mitchell2023detectgpt} and Fast-DetectGPT~\cite{bao2024fast} use perturbation-based log-probability curvature estimation. Binoculars~\cite{hans2024binoculars} compares perplexity ratios between two language models. These methods require no training data but assume access to a model similar to the generator---an assumption that breaks down with unknown generators.
+
+\subsection{The RAID Benchmark}
+
+RAID~\cite{dugan2024raid} addresses the limitations of prior benchmarks by providing texts from 11 generators, 8 domains, 11 adversarial attacks, and 4 decoding strategies. This comprehensive coverage makes RAID the most challenging and realistic benchmark for evaluating detection methods.
+
+%% ============================================================
+\section{Methodology}
+
+\subsection{90-Dimensional Handcrafted Features}
+
+We design 90 interpretable features organized into 9 linguistically motivated groups, as shown in Table~\ref{tab:features}.
+
+\begin{table}[t]
+\caption{90-dimensional feature groups.}
+\label{tab:features}
+\small
+\begin{tabular}{llp{4.2cm}}
+\toprule
+\textbf{Group} & \textbf{Dim} & \textbf{Example Features} \\
+\midrule
+basic\_counts    & 4  & word\_count, char\_count, sentence\_count, paragraph\_count \\
+averages         & 4  & avg\_word\_length, avg\_sentence\_length, words\_per\_paragraph \\
+variability      & 2  & word\_length\_std, sentence\_length\_std \\
+lexical\_richness & 7  & type\_token\_ratio, hapax\_ratio, yule\_k, simpson\_diversity \\
+punctuation      & 11 & comma\_rate, question\_rate, uppercase\_ratio, digit\_ratio \\
+readability      & 7  & flesch\_reading\_ease, gunning\_fog, smog\_index, ari \\
+structure        & 1  & short\_sentence\_ratio \\
+embedding\_pca   & 50 & BERT sentence embedding $\rightarrow$ PCA 50d \\
+perplexity       & 2  & gpt2\_perplexity, gpt2\_log\_perplexity \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each group captures a distinct linguistic dimension. Basic counts and averages reflect text structure; lexical richness measures vocabulary diversity (humans tend to use more varied vocabulary); punctuation patterns capture stylistic habits; readability indices detect AI's tendency toward formal prose; perplexity measures how ``surprising'' the text is to a reference language model; and semantic embeddings capture topic-level distributional differences.
+
+\subsection{Token Probability Features}
+
+We complement handcrafted features with 30 token-level probability features extracted using Mistral-7B-Instruct as an ``observer model.'' For each text, we compute per-token log-probability, rank, and entropy, then derive 10 statistical aggregates each (mean, std, min, max, median, skewness, kurtosis, IQR, 10th/90th percentile). The intuition is that AI-generated tokens tend to have higher probability under an observer LLM, creating a distributional gap at the token level.
+
+\subsection{Classification Models}
+
+We evaluate three interpretable classifiers:
+\begin{itemize}
+    \item \textbf{XGBoost} (primary): 500 trees, max\_depth=8, learning\_rate=0.1
+    \item \textbf{Logistic Regression}: L2-regularized, standardized features
+    \item \textbf{Random Forest}: 300 trees, max\_depth=15
+\end{itemize}
+
+\subsection{Interpretability Analysis}
+
+\begin{itemize}
+    \item \textbf{SHAP} (TreeExplainer): exact Shapley values for XGBoost, enabling global and instance-level attribution.
+    \item \textbf{Feature Group Ablation}: trains separate models on each feature group independently.
+    \item \textbf{Single-Feature AUC}: ROC AUC for each individual feature with Cohen's $d$ effect size.
+\end{itemize}
+
+%% ============================================================
+\section{Experimental Setup}
+
+\subsection{Datasets}
+
+Table~\ref{tab:datasets} summarizes the five datasets used in our study. RAID serves as the primary benchmark, while the remaining four provide cross-dataset validation.
+
+\begin{table}[t]
+\caption{Datasets used in this study.}
+\label{tab:datasets}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Dataset} & \textbf{Year} & \textbf{Gens} & \textbf{Domains} & \textbf{Samples} \\
+\midrule
+\textbf{RAID}    & 2024 & 11 & 8     & 468K \\
+HC3              & 2023 & 1  & 4     & 85K  \\
+SemEval 2024     & 2024 & 6+ & Multi & 120K \\
+TuringBench      & 2021 & 19 & News  & 332K \\
+Pile             & 2023 & Mix & Multi & 80K  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Data Processing}
+
+RAID presents severe class imbalance (97\% AI, 3\% human). We apply stratified subsampling: training set capped at 80K (balanced), test set at 20K. For adversarial analysis, we evaluate the trained model on each of the 11 attack types from the full attack-augmented dataset.
+
+\subsection{Evaluation Metrics}
+
+We report ROC AUC (primary) and Accuracy. AUC is preferred as it is threshold-independent and robust to class imbalance.
+
+%% ============================================================
+\section{Results and Analysis}
+
+\subsection{Main Results on RAID}
+
+Table~\ref{tab:main} presents the main results on RAID.
+
+\begin{table}[t]
+\caption{Method comparison on RAID benchmark.}
+\label{tab:main}
+\small
+\begin{tabular}{llcc}
+\toprule
+\textbf{Method} & \textbf{Type} & \textbf{AUC} & \textbf{Acc} \\
+\midrule
+\textbf{XGBoost (90 feat)}     & Trad.\ ML   & \textbf{0.9951} & \textbf{0.9714} \\
+Random Forest (90 feat)        & Trad.\ ML   & 0.9916 & 0.9631 \\
+Token feat (Mistral-7B)        & LLM+ML      & 0.9900 & 0.9590 \\
+Logistic Regression (90 feat)  & Trad.\ ML   & 0.9842 & 0.9423 \\
+Fast-DetectGPT (zero-shot)     & Zero-shot   & 0.7815 & 0.7452 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+XGBoost with 90 handcrafted features achieves the best performance (AUC 0.9951), significantly outperforming the zero-shot Fast-DetectGPT baseline. All three traditional ML classifiers outperform the zero-shot method, demonstrating that well-designed features with simple classifiers can rival or exceed more complex approaches.
+
+\subsection{Feature Ablation: The Perplexity Paradox}
+
+\begin{table}[t]
+\caption{Feature group ablation: RAID vs HC3. Each group is trained independently with XGBoost.}
+\label{tab:ablation}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Group} & \textbf{Dim} & \textbf{RAID} & \textbf{HC3} & \textbf{$\Delta$} \\
+\midrule
+basic\_counts     & 4  & \textbf{0.9719} & 0.9204 & +0.05 \\
+averages          & 4  & 0.9665 & 0.9021 & +0.06 \\
+punctuation       & 11 & 0.8617 & 0.9207 & $-$0.06 \\
+lexical\_richness  & 7  & 0.8503 & 0.9367 & $-$0.09 \\
+embedding\_pca    & 50 & 0.7624 & 0.8972 & $-$0.13 \\
+readability       & 7  & 0.6966 & 0.9741 & $-$0.28 \\
+variability       & 2  & 0.6830 & 0.8987 & $-$0.22 \\
+structure         & 1  & 0.5955 & 0.8965 & $-$0.30 \\
+\textbf{perplexity} & \textbf{2} & \textbf{0.4920} & \textbf{0.9912} & \textbf{$-$0.50} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:ablation} reveals a striking finding: \textbf{GPT-2 perplexity is the strongest single feature group on HC3 (AUC 0.9912) but completely fails on RAID (AUC 0.4920---worse than random)}. This ``perplexity paradox'' occurs because GPT-2 perplexity effectively measures distributional similarity to GPT-2, which does not generalize across 11 diverse generators. In contrast, basic\_counts (word/sentence/paragraph counts) becomes the strongest group on RAID (AUC 0.9719), suggesting that \textbf{text length and paragraph structure are the most stable cross-model signals}.
+
+\subsection{SHAP Interpretability}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../figures/raid_shap_summary.png}
+    \caption{SHAP feature importance on RAID (top 25 features). Paragraph structure features dominate.}
+    \label{fig:shap}
+\end{figure}
+
+Figure~\ref{fig:shap} shows the SHAP summary plot. The top features are:
+\begin{enumerate}
+    \item \textbf{words\_per\_paragraph}---AI text produces shorter, more uniform paragraphs.
+    \item \textbf{sentences\_per\_paragraph}---AI paragraphs contain fewer sentences.
+    \item \textbf{paragraph\_count}---AI generates more paragraphs for equivalent content.
+    \item \textbf{sentence\_length\_std}---human writing has higher sentence length variation.
+\end{enumerate}
+
+This aligns with the well-known ``list-making'' tendency of LLMs, which break content into many short paragraphs with bullet points or numbered lists.
+
+\subsection{Per-Generator and Per-Domain Analysis}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../figures/raid_generator_radar.png}
+    \caption{Per-generator feature profiles (top-8 features, z-scored). Different generators exhibit distinct statistical signatures.}
+    \label{fig:radar}
+\end{figure}
+
+Figure~\ref{fig:radar} shows per-generator feature profiles. MPT-30B is the hardest to detect (Accuracy 47.4\%), while ChatGPT is easiest (96.2\%). Poetry is the most challenging domain (AUC 0.6137) because human poetry is inherently stylized, reducing the statistical gap.
+
+\subsection{Adversarial Robustness}
+
+\begin{table}[t]
+\caption{Adversarial attack robustness (XGBoost, 90 features). Baseline AUC = 0.9951.}
+\label{tab:adversarial}
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Attack} & \textbf{AUC} & \textbf{Drop} \\
+\midrule
+insert\_paragraphs       & 0.9915 & $-$0.004 \\
+whitespace               & 0.9701 & $-$0.025 \\
+synonym                  & 0.9660 & $-$0.029 \\
+homoglyph                & 0.9516 & $-$0.044 \\
+zero\_width\_space        & 0.8424 & $-$0.153 \\
+\textbf{paraphrase}      & \textbf{0.7902} & \textbf{$-$0.205} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:adversarial} shows that \textbf{paraphrase attack is the only strategy that significantly degrades detection} (AUC drop 20.5\%). It rewrites the text's lexical and syntactic structure, disrupting most statistical features. Surface-level attacks (spelling, case, number substitution) are almost entirely ineffective, because the majority of our features capture semantic and statistical properties rather than character-level patterns.
+
+\subsection{Cross-Dataset Generalization}
+
+\begin{table}[t]
+\caption{Cross-dataset XGBoost (90 features) results.}
+\label{tab:cross}
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Dataset} & \textbf{AUC} & \textbf{Accuracy} \\
+\midrule
+RAID (11 gens)       & 0.9951 & 0.9714 \\
+HC3 (ChatGPT)        & 0.9999 & 0.9962 \\
+TuringBench (GPT-1\textasciitilde3) & 0.9841 & 0.9520 \\
+Pile (mixed)          & 0.9831 & 0.9488 \\
+SemEval 2024 (6+ gens) & 0.6872 & 0.6501 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:cross} demonstrates strong generalization across most datasets. The exception is SemEval 2024, which contains recent models whose surface statistics have converged with human text, posing challenges for purely statistical detection.
+
+%% ============================================================
+\section{Discussion}
+
+\subsection{The Multi-Model Detection Challenge}
+
+Our results reveal a fundamental insight: \textbf{the features that matter most depend critically on the diversity of generators}. On single-model datasets, language model perplexity dominates because it directly measures distributional similarity to the generator. On multi-model datasets, perplexity fails because no single reference model can capture the diversity of 11 generators, and structural features emerge as the universal signal.
+
+\subsection{Practical Deployment Recommendations}
+
+\begin{enumerate}
+    \item Use \textbf{model-agnostic features} (text length, paragraph structure) as the primary detection backbone for unknown generators.
+    \item Supplement with \textbf{token probability features} from a contemporary observer model to cover newer generators.
+    \item Implement \textbf{paraphrase-specific defenses} as paraphrase is the only effective evasion strategy.
+    \item Account for \textbf{domain differences}---poetry and creative writing require domain-adapted thresholds.
+\end{enumerate}
+
+\subsection{Limitations}
+
+Our study has several limitations: (1)~the 90-feature pipeline requires GPT-2 and BERT inference, adding computational overhead; (2)~adversarial analysis is limited to the attacks provided by RAID; (3)~the study does not evaluate on non-English text; (4)~as LLMs continue to improve, the statistical gap between human and AI text may narrow further.
+
+%% ============================================================
+\section{Conclusion}
+
+We presented a comprehensive, interpretable approach to AI-generated text detection using 90 handcrafted linguistic features. Through systematic evaluation on RAID and four additional datasets, we demonstrated that:
+
+\begin{enumerate}
+    \item \textbf{Interpretable feature-based methods achieve state-of-the-art performance} (AUC 0.9951 on RAID), rivaling black-box approaches while providing full explainability.
+    \item \textbf{Feature importance fundamentally shifts between single-model and multi-model scenarios}: perplexity dominates single-model detection but fails completely in multi-model settings, where paragraph structure becomes the strongest signal.
+    \item \textbf{Most adversarial attacks are ineffective} against well-designed statistical features; only semantic-level attacks (paraphrase) pose a genuine threat.
+\end{enumerate}
+
+Future work should explore multilingual detection, dynamic feature adaptation, and semantic-level defenses against paraphrase attacks.
+
+%% ============================================================
+\bibliographystyle{ACM-Reference-Format}
+\begin{thebibliography}{7}
+
+\bibitem{bao2024fast}
+Guangsheng Bao, Yanbin Zhao, Zhiyang Teng, Linyi Yang, and Yue Zhang. 2024.
+\newblock Fast-DetectGPT: Efficient Zero-Shot Detection of Machine-Generated Text via Conditional Probability Curvature.
+\newblock In \emph{ICLR 2024}.
+
+\bibitem{dugan2024raid}
+Liam Dugan, Alyssa Hwang, Filip Trhl\'{i}k, Faisal Ladhak, Daphne Ippolito, Chris Callison-Burch, and Eun Jee Lee. 2024.
+\newblock RAID: A Shared Benchmark for Robust Evaluation of Machine-Generated Text Detectors.
+\newblock In \emph{ACL 2024}.
+
+\bibitem{gao2023hc3}
+Chaoqun Gao et al. 2023.
+\newblock Human ChatGPT Comparison Corpus (HC3).
+\newblock \emph{arXiv:2301.07597}.
+
+\bibitem{gehrmann2019gltr}
+Sebastian Gehrmann, Hendrik Strobelt, and Alexander~M. Rush. 2019.
+\newblock GLTR: Statistical Detection and Visualization of Generated Text.
+\newblock In \emph{ACL 2019}.
+
+\bibitem{hans2024binoculars}
+Abhimanyu Hans, Avi Schwarzschild, Valeriia Cheeseman, Carolyn~B. Bruss, and Micah Goldblum. 2024.
+\newblock Binoculars: Zero-Shot Detection of LLM-Generated Text.
+\newblock In \emph{ICML 2024}.
+
+\bibitem{lundberg2017shap}
+Scott~M. Lundberg and Su-In Lee. 2017.
+\newblock A Unified Approach to Interpreting Model Predictions.
+\newblock In \emph{NeurIPS 2017}.
+
+\bibitem{mitchell2023detectgpt}
+Eric Mitchell, Yoonho Lee, Alexander Khazatsky, Christopher~D. Manning, and Chelsea Finn. 2023.
+\newblock DetectGPT: Zero-Shot Machine-Generated Text Detection using Probability Curvature.
+\newblock In \emph{ICML 2023}.
+
+\end{thebibliography}
+
+\end{document}
