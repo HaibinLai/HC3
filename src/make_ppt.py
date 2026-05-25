@@ -142,45 +142,64 @@ add_text_box(slide, 0.8, 6.5, 11, 0.5,
 # ========== Slide 4: Method Overview ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
-add_text_box(slide, 0.8, 0.4, 10, 0.8, "方法概览：120 维可解释特征 + XGBoost", 32, ACCENT, bold=True)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "方法概览：三层 120 维特征体系 + XGBoost", 32, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 8)
 
-# Left: 90 handcrafted
-add_text_box(slide, 0.8, 1.5, 5, 0.6, "90 维手工统计特征", 22, ACCENT2, bold=True)
-add_bullet_list(slide, 0.8, 2.1, 5, 3.5, [
-    "basic_counts (4): 词数、字符数、句数、段数",
-    "averages (4): 平均词长、句长、段落长度",
+ACCENT_ORANGE = RGBColor(0xFF, 0xA5, 0x00)
+
+# Column 1: Statistical
+add_text_box(slide, 0.3, 1.4, 3.8, 0.5, "Layer 1: 纯统计特征 (~36维)", 18, ACCENT2, bold=True)
+add_bullet_list(slide, 0.3, 1.9, 3.8, 3.2, [
+    "basic_counts (4): 词/字符/句/段数",
+    "averages (4): 平均词长/句长/段长",
     "variability (2): 词长/句长标准差",
-    "lexical_richness (7): TTR, Hapax, Yule's K...",
-    "punctuation (11): 标点使用率 + 大写/数字/空格比",
-    "readability (7): Flesch, Gunning Fog, SMOG...",
+    "lexical_richness (7): TTR, Hapax...",
+    "punctuation (11): 标点 + 大写/数字比",
+    "readability (7): Flesch, SMOG...",
     "structure (1): 短句比例",
-    "embedding_pca (50): BERT 句嵌入 PCA",
-    "perplexity (2): GPT-2 困惑度",
-], font_size=14, color=LIGHT)
-
-# Right: 30 token
-add_text_box(slide, 7, 1.5, 5, 0.6, "30 维 Token 概率特征", 22, ACCENT3, bold=True)
-add_bullet_list(slide, 7, 2.1, 5.5, 3.5, [
-    "观察者模型: Mistral-7B-Instruct",
     "",
-    "Log-probability (10 统计量):",
-    "  mean, std, min, max, median, q10, q90,",
-    "  skew, kurtosis, diff_mean",
-    "Token Rank (8 统计量):",
-    "  mean, std, median, q90,",
-    "  top-1/5/10/100 fraction",
-    "Entropy (6 统计量):",
-    "  mean, std, min, max, median, skew",
-], font_size=14, color=LIGHT)
+    "不依赖任何神经网络, 纯公式计算",
+], font_size=12, color=LIGHT)
 
-# Bottom: arrow to combined
-add_text_box(slide, 2, 5.8, 9, 0.8,
-    "→  合并为 118 维 (去重后)  →  XGBoost (500 trees, depth 8)  →  SHAP 可解释分析",
-    20, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+# Column 2: Model-derived
+add_text_box(slide, 4.5, 1.4, 4, 0.5, "Layer 2: 模型衍生特征 (52维)", 18, ACCENT_ORANGE, bold=True)
+add_bullet_list(slide, 4.5, 1.9, 4, 3.2, [
+    "BERT embedding → PCA (50维)",
+    "  将文本映射到语义空间",
+    "  AI 文本语义分布更集中",
+    "",
+    "GPT-2 perplexity (2维)",
+    "  文本级别的困惑度汇总",
+    "  HC3 最强特征 (AUC 0.99)",
+    "  RAID 完全失效 (AUC 0.49)",
+    "  → 模型依赖性是其本质属性",
+], font_size=12, color=LIGHT)
+
+# Column 3: Token-level
+add_text_box(slide, 8.8, 1.4, 4.2, 0.5, "Layer 3: Token 概率特征 (30维)", 18, ACCENT3, bold=True)
+add_bullet_list(slide, 8.8, 1.9, 4.2, 3.2, [
+    "观察者: Mistral-7B-Instruct",
+    "",
+    "Log-prob (10): mean, std, min,",
+    "  max, median, q10, q90, skew...",
+    "Rank (8): mean, std, median,",
+    "  top-1/5/10/100 fraction",
+    "Entropy (6): mean, std, min,",
+    "  max, median, skew",
+    "",
+    "逐 token 粒度, 看 AI 的\"选词指纹\"",
+], font_size=12, color=LIGHT)
+
+# Bottom: pipeline arrow
+add_text_box(slide, 0.5, 5.3, 12, 0.5,
+    "纯统计 (36维)  +  模型衍生 (52维)  +  Token级 (30维)  =  118维 (去重后)",
+    18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+add_text_box(slide, 2, 5.8, 9, 0.6,
+    "→  Auto-Filter (丢噪声组)  →  XGBoost (500 trees, depth 8)  →  SHAP 可解释分析",
+    18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
 
 add_text_box(slide, 0.8, 6.5, 11, 0.5,
-    "核心理念：手工特征看\"文本的外表\"，Token 特征看\"文本在 AI 眼中的内在\"",
+    "三层特征从不同粒度和视角刻画文本: 表面统计 → 语义嵌入 → Token 概率",
     16, ACCENT, alignment=PP_ALIGN.CENTER)
 
 # ========== Slide 4b: Lexical Richness & Readability Deep Dive ==========
@@ -234,11 +253,11 @@ add_text_box(slide, 0.8, 6.5, 12, 0.5,
 # ========== Slide 4c: Structural & Punctuation Features ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
-add_text_box(slide, 0.8, 0.4, 12, 0.8, "手工特征详解：结构 & 标点 & 嵌入", 32, ACCENT, bold=True)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "模型衍生特征详解：语义嵌入 & 困惑度", 32, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 8)
 
 # Left: Structure + Punctuation
-add_text_box(slide, 0.8, 1.4, 5.8, 0.6, "结构 & 标点特征 — 16 维", 20, ACCENT2, bold=True)
+add_text_box(slide, 0.8, 1.4, 5.8, 0.6, "结构 & 标点 (纯统计特征) — 16 维", 20, ACCENT2, bold=True)
 add_bullet_list(slide, 0.8, 2.0, 5.8, 2.5, [
     "words_per_paragraph  (RAID 最强单特征, AUC 0.89)",
     "  AI 平均每段 ~70 词, 人类 ~200 词",
@@ -254,7 +273,7 @@ add_bullet_list(slide, 0.8, 2.0, 5.8, 2.5, [
 ], font_size=14, color=LIGHT)
 
 # Right: Embedding PCA + Perplexity
-add_text_box(slide, 7, 1.4, 5.8, 0.6, "语义嵌入 & 困惑度 — 52 维", 20, ACCENT3, bold=True)
+add_text_box(slide, 7, 1.4, 5.8, 0.6, "模型衍生特征 (Layer 2) — 52 维", 20, RGBColor(0xFF, 0xA5, 0x00), bold=True)
 add_bullet_list(slide, 7, 2.0, 5.8, 2.5, [
     "BERT Sentence Embedding → PCA 50 维",
     "  将文本映射到 BERT 语义空间",
