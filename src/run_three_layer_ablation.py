@@ -24,7 +24,7 @@ from pathlib import Path
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
-from auto_filter import auto_filter_groups, GROUPS
+from auto_filter import auto_filter_groups, greedy_forward_filter, GROUPS
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / 'data' / 'processed'
@@ -156,7 +156,7 @@ def run_configs(X90_tr, X90_te, tok_tr, tok_te, y_tr, y_te, dataset_name):
     _run('MF + token', mf_cols, True)
     _run('MF + MB (all)', mf_cols + mb_cols, True)
 
-    # Auto-filter
+    # Auto-filter (threshold-based, legacy)
     if has_tok:
         kept, dropped, g_aucs = auto_filter_groups(X90_tr, y_tr, threshold=0.52, verbose=False)
         if kept:
@@ -174,6 +174,25 @@ def run_configs(X90_tr, X90_te, tok_tr, tok_te, y_tr, y_te, dataset_name):
     else:
         last_mf_mb = [r for r in results if r['config'] == 'MF + MB (all)']
         results.append({'dataset': dataset_name, 'config': 'auto-filter', 'n_feats': len(mf_cols + mb_cols), 'auc': last_mf_mb[0]['auc'] if last_mf_mb else 0.5})
+
+    # Greedy forward selection (CV-based)
+    if has_tok:
+        gf_kept, gf_kept_g, gf_dropped_g, gf_log = greedy_forward_filter(
+            X90_tr, tok_tr, y_tr, min_gain=0.01, cv=3, verbose=True)
+        if gf_kept:
+            Xtr_gf = pd.concat([X90_tr[gf_kept].reset_index(drop=True), tok_tr], axis=1)
+            Xte_gf = pd.concat([X90_te[gf_kept].reset_index(drop=True), tok_te], axis=1)
+        else:
+            Xtr_gf = tok_tr.copy()
+            Xte_gf = tok_te.copy()
+        Xtr_gf = Xtr_gf.loc[:, ~Xtr_gf.columns.duplicated()]
+        Xte_gf = Xte_gf.loc[:, ~Xte_gf.columns.duplicated()]
+        auc_gf = train_eval_xgb(Xtr_gf, Xte_gf, y_tr, y_te)
+        print(f"  {dataset_name:12s} | {'greedy-filter':20s} | {len(Xtr_gf.columns):3d}d | AUC={auc_gf:.4f} (kept groups: {gf_kept_g}, dropped: {gf_dropped_g})")
+        results.append({'dataset': dataset_name, 'config': 'greedy-filter', 'n_feats': len(Xtr_gf.columns), 'auc': auc_gf})
+    else:
+        last_mf_mb = [r for r in results if r['config'] == 'MF + MB (all)']
+        results.append({'dataset': dataset_name, 'config': 'greedy-filter', 'n_feats': len(mf_cols + mb_cols), 'auc': last_mf_mb[0]['auc'] if last_mf_mb else 0.5})
 
     return results
 
@@ -270,7 +289,7 @@ def plot_heatmap(all_results):
 
     # Order
     config_order = ['model-free', 'BERT-emb', 'GPT2-ppl', 'Mistral-token',
-                    'model-based (all)', 'MF + BERT', 'MF + token', 'MF + MB (all)', 'auto-filter']
+                    'model-based (all)', 'MF + BERT', 'MF + token', 'MF + MB (all)', 'auto-filter', 'greedy-filter']
     dataset_order = ['RAID', 'HC3', 'SemEval', 'TuringBench', 'Pile']
     config_order = [c for c in config_order if c in pivot.index]
     dataset_order = [d for d in dataset_order if d in pivot.columns]

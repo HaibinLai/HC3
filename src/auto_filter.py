@@ -132,3 +132,114 @@ def build_filtered_120(X_train_90, X_test_90, tok_train, tok_test, y_train,
     Xte = Xte.loc[:, ~Xte.columns.duplicated()]
 
     return Xtr, Xte, kept, dropped, g_aucs
+
+
+# ── Greedy Forward Selection ──
+
+def greedy_forward_filter(X_train_90, tok_train, y_train,
+                          min_gain=0.001, cv=3, groups=None,
+                          seed=42, verbose=True):
+    """Greedy forward group selection based on CV AUC.
+
+    Start from token features as base, then try adding each handcrafted
+    feature group one at a time (sorted by signal strength).  Only keep a
+    group if it improves 3-fold CV AUC by at least `min_gain`.
+
+    Parameters
+    ----------
+    X_train_90 : DataFrame  – 90-dim handcrafted features (train split)
+    tok_train  : DataFrame  – 30-dim token features (train split)
+    y_train    : array      – binary labels
+    min_gain   : float      – minimum AUC improvement to accept a group
+    cv         : int        – number of CV folds
+    groups     : dict|None  – override default GROUPS
+    seed       : int        – random seed
+    verbose    : bool       – print diagnostics
+
+    Returns
+    -------
+    kept_features  : list[str]   – handcrafted feature columns to keep
+    kept_groups    : list[str]   – group names accepted
+    dropped_groups : list[str]   – group names rejected
+    selection_log  : list[dict]  – per-step log with group name, cv_auc, accepted
+    """
+    from sklearn.model_selection import StratifiedKFold, cross_val_score
+    from xgboost import XGBClassifier
+
+    if groups is None:
+        groups = GROUPS
+
+    # Signal strength to determine try-order (strongest first)
+    g_aucs = group_signal_strength(X_train_90, y_train, groups)
+    sorted_groups = sorted(g_aucs.keys(), key=lambda g: -g_aucs[g])
+
+    # Resolve available features per group
+    group_feats = {}
+    for g in sorted_groups:
+        avail = [f for f in groups[g] if f in X_train_90.columns]
+        if avail:
+            group_feats[g] = avail
+
+    # CV helper
+    skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=seed)
+
+    def _cv_auc(X):
+        clf = XGBClassifier(n_estimators=200, max_depth=6, learning_rate=0.1,
+                            subsample=0.8, colsample_bytree=0.8,
+                            eval_metric='logloss', random_state=seed,
+                            tree_method='hist', device='cuda')
+        scores = cross_val_score(clf, X, y_train, cv=skf, scoring='roc_auc')
+        return scores.mean()
+
+    # Base: token only
+    base_cols_90 = []  # handcrafted columns accepted so far
+    if tok_train is not None and len(tok_train.columns) > 0:
+        base_X = tok_train.reset_index(drop=True).copy()
+    else:
+        base_X = pd.DataFrame(index=range(len(y_train)))
+
+    best_auc = _cv_auc(base_X) if len(base_X.columns) > 0 else 0.0
+    if verbose:
+        print(f"Greedy forward selection (min_gain={min_gain}, cv={cv}):")
+        print(f"  Base (token only, {len(base_X.columns)}d): CV AUC = {best_auc:.4f}")
+
+    kept_groups = []
+    dropped_groups = []
+    selection_log = []
+
+    for g in sorted_groups:
+        if g not in group_feats:
+            continue
+        feats = group_feats[g]
+        candidate_X = pd.concat([base_X,
+                                 X_train_90[feats].reset_index(drop=True)], axis=1)
+        candidate_X = candidate_X.loc[:, ~candidate_X.columns.duplicated()]
+        cv_auc = _cv_auc(candidate_X)
+        gain = cv_auc - best_auc
+        accepted = gain >= min_gain
+
+        if accepted:
+            base_X = candidate_X
+            base_cols_90.extend(feats)
+            best_auc = cv_auc
+            kept_groups.append(g)
+        else:
+            dropped_groups.append(g)
+
+        tag = "+" if accepted else "-"
+        selection_log.append({
+            'group': g, 'n_feats': len(feats),
+            'signal_auc': g_aucs[g], 'cv_auc': cv_auc,
+            'gain': gain, 'accepted': accepted,
+        })
+        if verbose:
+            print(f"  [{tag}] {g:20s} ({len(feats):2d}d)  "
+                  f"signal={g_aucs[g]:.4f}  cv={cv_auc:.4f}  "
+                  f"gain={gain:+.4f}  → {'KEEP' if accepted else 'DROP'}")
+
+    if verbose:
+        print(f"  Final: {len(base_cols_90)} handcrafted + "
+              f"{len(tok_train.columns) if tok_train is not None else 0} token = "
+              f"{len(base_X.columns)}d  CV AUC = {best_auc:.4f}")
+
+    return base_cols_90, kept_groups, dropped_groups, selection_log
