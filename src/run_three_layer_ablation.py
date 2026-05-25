@@ -31,23 +31,27 @@ DATA = ROOT / 'data' / 'processed'
 FIG  = ROOT / 'figures'
 SEED = 42
 
-# ── Three-layer group mapping ──
-STAT_GROUPS = ['basic_counts', 'averages', 'variability', 'lexical_richness',
-               'punctuation', 'readability', 'structure']
-MODEL_GROUPS = ['embedding_pca', 'perplexity']
+# ── Two-layer + sub-group mapping ──
+# Layer 1: Model-Free (no neural network)
+MODELFREE_GROUPS = ['basic_counts', 'averages', 'variability', 'lexical_richness',
+                    'punctuation', 'readability', 'structure']
+# Layer 2: Model-Based (requires LLM/pretrained model inference)
+#   sub-groups: embedding_pca (BERT), perplexity (GPT-2), token (Mistral-7B)
+MODELBASED_GROUPS = ['embedding_pca', 'perplexity']
+# Token features are also model-based (Mistral-7B)
 
 def get_layer_cols(all_cols):
-    """Given feature columns, return stat/model layer columns."""
-    stat_cols, model_cols = [], []
-    for g in STAT_GROUPS:
+    """Given feature columns, return model-free / model-based layer columns."""
+    mf_cols, mb_cols = [], []
+    for g in MODELFREE_GROUPS:
         for f in GROUPS[g]:
             if f in all_cols:
-                stat_cols.append(f)
-    for g in MODEL_GROUPS:
+                mf_cols.append(f)
+    for g in MODELBASED_GROUPS:
         for f in GROUPS[g]:
             if f in all_cols:
-                model_cols.append(f)
-    return stat_cols, model_cols
+                mb_cols.append(f)
+    return mf_cols, mb_cols
 
 
 # ── HC3 column rename mapping ──
@@ -94,9 +98,13 @@ def train_eval_xgb(X_tr, X_te, y_tr, y_te):
 
 
 def run_configs(X90_tr, X90_te, tok_tr, tok_te, y_tr, y_te, dataset_name):
-    """Run 7 configs + auto-filter on one dataset."""
-    stat_cols, model_cols = get_layer_cols(X90_tr.columns)
+    """Run configs on one dataset: model-free, model-based sub-groups, combinations."""
+    mf_cols, mb_cols = get_layer_cols(X90_tr.columns)
     tok_cols = list(tok_tr.columns) if tok_tr is not None else []
+    # BERT embedding sub-group
+    bert_cols = [c for c in mb_cols if c.startswith('emb_pca_')]
+    # GPT-2 perplexity sub-group
+    ppl_cols = [c for c in mb_cols if 'perplexity' in c]
 
     has_tok = tok_tr is not None and len(tok_cols) > 0
     n_tr = len(X90_tr)
@@ -125,21 +133,28 @@ def run_configs(X90_tr, X90_te, tok_tr, tok_te, y_tr, y_te, dataset_name):
         Xtr = Xtr.loc[:, ~Xtr.columns.duplicated()]
         Xte = Xte.loc[:, ~Xte.columns.duplicated()]
         auc = train_eval_xgb(Xtr, Xte, y_tr, y_te)
-        print(f"  {dataset_name:12s} | {name:16s} | {len(Xtr.columns):3d}d | AUC={auc:.4f}")
+        print(f"  {dataset_name:12s} | {name:20s} | {len(Xtr.columns):3d}d | AUC={auc:.4f}")
         results.append({'dataset': dataset_name, 'config': name, 'n_feats': len(Xtr.columns), 'auc': auc})
 
-    _run('stat', stat_cols, False)
-    _run('model', model_cols, False)
-    if has_tok:
-        _run('token', [], True)
-    else:
-        results.append({'dataset': dataset_name, 'config': 'token', 'n_feats': 0, 'auc': 0.5})
-        print(f"  {dataset_name:12s} | {'token':16s} |   0d | AUC=0.5000 (no token data)")
+    # Layer 1: Model-Free
+    _run('model-free', mf_cols, False)
 
-    _run('stat+model', stat_cols + model_cols, False)
-    _run('stat+token', stat_cols, True)
-    _run('model+token', model_cols, True)
-    _run('all', stat_cols + model_cols, True)
+    # Layer 2 sub-groups
+    _run('BERT-emb', bert_cols, False)
+    _run('GPT2-ppl', ppl_cols, False)
+    if has_tok:
+        _run('Mistral-token', [], True)
+    else:
+        results.append({'dataset': dataset_name, 'config': 'Mistral-token', 'n_feats': 0, 'auc': 0.5})
+        print(f"  {dataset_name:12s} | {'Mistral-token':20s} |   0d | AUC=0.5000 (no token data)")
+
+    # Layer 2 combined (all model-based)
+    _run('model-based (all)', mb_cols, True)
+
+    # Two-layer combinations
+    _run('MF + BERT', mf_cols + bert_cols, False)
+    _run('MF + token', mf_cols, True)
+    _run('MF + MB (all)', mf_cols + mb_cols, True)
 
     # Auto-filter
     if has_tok:
@@ -154,10 +169,11 @@ def run_configs(X90_tr, X90_te, tok_tr, tok_te, y_tr, y_te, dataset_name):
         Xte_af = Xte_af.loc[:, ~Xte_af.columns.duplicated()]
         auc_af = train_eval_xgb(Xtr_af, Xte_af, y_tr, y_te)
         n_dropped = len(dropped)
-        print(f"  {dataset_name:12s} | {'auto-filter':16s} | {len(Xtr_af.columns):3d}d | AUC={auc_af:.4f} (dropped {n_dropped} groups: {dropped})")
+        print(f"  {dataset_name:12s} | {'auto-filter':20s} | {len(Xtr_af.columns):3d}d | AUC={auc_af:.4f} (dropped {n_dropped} groups: {dropped})")
         results.append({'dataset': dataset_name, 'config': 'auto-filter', 'n_feats': len(Xtr_af.columns), 'auc': auc_af})
     else:
-        results.append({'dataset': dataset_name, 'config': 'auto-filter', 'n_feats': len(stat_cols + model_cols), 'auc': results[3]['auc']})
+        last_mf_mb = [r for r in results if r['config'] == 'MF + MB (all)']
+        results.append({'dataset': dataset_name, 'config': 'auto-filter', 'n_feats': len(mf_cols + mb_cols), 'auc': last_mf_mb[0]['auc'] if last_mf_mb else 0.5})
 
     return results
 
@@ -253,7 +269,8 @@ def plot_heatmap(all_results):
     pivot = df.pivot(index='config', columns='dataset', values='auc')
 
     # Order
-    config_order = ['stat', 'model', 'token', 'stat+model', 'stat+token', 'model+token', 'all', 'auto-filter']
+    config_order = ['model-free', 'BERT-emb', 'GPT2-ppl', 'Mistral-token',
+                    'model-based (all)', 'MF + BERT', 'MF + token', 'MF + MB (all)', 'auto-filter']
     dataset_order = ['RAID', 'HC3', 'SemEval', 'TuringBench', 'Pile']
     config_order = [c for c in config_order if c in pivot.index]
     dataset_order = [d for d in dataset_order if d in pivot.columns]

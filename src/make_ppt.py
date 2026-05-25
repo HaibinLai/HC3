@@ -142,64 +142,49 @@ add_text_box(slide, 0.8, 6.5, 11, 0.5,
 # ========== Slide 4: Method Overview ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
-add_text_box(slide, 0.8, 0.4, 12, 0.8, "方法概览：三层 120 维特征体系 + XGBoost", 32, ACCENT, bold=True)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "方法概览：两层 118 维特征体系 + XGBoost", 32, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 8)
 
 ACCENT_ORANGE = RGBColor(0xFF, 0xA5, 0x00)
 
-# Column 1: Statistical
-add_text_box(slide, 0.3, 1.4, 3.8, 0.5, "Layer 1: 纯统计特征 (~36维)", 18, ACCENT2, bold=True)
-add_bullet_list(slide, 0.3, 1.9, 3.8, 3.2, [
+# Left: Model-Free
+add_text_box(slide, 0.5, 1.4, 5.5, 0.5, "Layer 1: Model-Free (~36维)", 20, ACCENT2, bold=True)
+add_text_box(slide, 0.5, 1.9, 5.5, 0.4, "不依赖任何神经网络, 纯文本统计", 14, GRAY)
+add_bullet_list(slide, 0.5, 2.3, 5.5, 3, [
     "basic_counts (4): 词/字符/句/段数",
     "averages (4): 平均词长/句长/段长",
     "variability (2): 词长/句长标准差",
-    "lexical_richness (7): TTR, Hapax...",
-    "punctuation (11): 标点 + 大写/数字比",
-    "readability (7): Flesch, SMOG...",
+    "lexical_richness (7): TTR, Hapax, Yule's K...",
+    "punctuation (11): 标点使用率 + 大写/数字比",
+    "readability (7): Flesch, Gunning Fog, SMOG...",
     "structure (1): 短句比例",
-    "",
-    "不依赖任何神经网络, 纯公式计算",
-], font_size=12, color=LIGHT)
+], font_size=13, color=LIGHT)
 
-# Column 2: Model-derived
-add_text_box(slide, 4.5, 1.4, 4, 0.5, "Layer 2: 模型衍生特征 (52维)", 18, ACCENT_ORANGE, bold=True)
-add_bullet_list(slide, 4.5, 1.9, 4, 3.2, [
+# Right: Model-Based
+add_text_box(slide, 7, 1.4, 5.8, 0.5, "Layer 2: Model-Based (82维)", 20, ACCENT3, bold=True)
+add_text_box(slide, 7, 1.9, 5.8, 0.4, "需要预训练模型推理, 不同参考模型有不同\"有效期\"", 14, GRAY)
+add_bullet_list(slide, 7, 2.3, 5.8, 3, [
     "BERT embedding → PCA (50维)",
-    "  将文本映射到语义空间",
-    "  AI 文本语义分布更集中",
+    "  语义空间分布, 捕捉风格差异",
     "",
     "GPT-2 perplexity (2维)",
-    "  文本级别的困惑度汇总",
-    "  HC3 最强特征 (AUC 0.99)",
-    "  RAID 完全失效 (AUC 0.49)",
-    "  → 模型依赖性是其本质属性",
-], font_size=12, color=LIGHT)
-
-# Column 3: Token-level
-add_text_box(slide, 8.8, 1.4, 4.2, 0.5, "Layer 3: Token 概率特征 (30维)", 18, ACCENT3, bold=True)
-add_bullet_list(slide, 8.8, 1.9, 4.2, 3.2, [
-    "观察者: Mistral-7B-Instruct",
+    "  文本级困惑度, 检测\"GPT家族\"",
     "",
-    "Log-prob (10): mean, std, min,",
-    "  max, median, q10, q90, skew...",
-    "Rank (8): mean, std, median,",
-    "  top-1/5/10/100 fraction",
-    "Entropy (6): mean, std, min,",
-    "  max, median, skew",
-    "",
-    "逐 token 粒度, 看 AI 的\"选词指纹\"",
-], font_size=12, color=LIGHT)
+    "Mistral-7B token 概率 (30维)",
+    "  逐 token log-prob / rank / entropy",
+    "  检测同代 AI 的\"选词指纹\"",
+], font_size=13, color=LIGHT)
 
 # Bottom: pipeline arrow
 add_text_box(slide, 0.5, 5.3, 12, 0.5,
-    "纯统计 (36维)  +  模型衍生 (52维)  +  Token级 (30维)  =  118维 (去重后)",
+    "Model-Free (36维)  +  Model-Based (82维)  =  118维 (去重后)",
     18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
 add_text_box(slide, 2, 5.8, 9, 0.6,
     "→  Auto-Filter (丢噪声组)  →  XGBoost (500 trees, depth 8)  →  SHAP 可解释分析",
     18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
 
 add_text_box(slide, 0.8, 6.5, 11, 0.5,
-    "三层特征从不同粒度和视角刻画文本: 表面统计 → 语义嵌入 → Token 概率",
+    "核心理念：Model-Free 看文本的外表, Model-Based 的三个参考模型各自捕捉不同时代 AI 的内在",
     16, ACCENT, alignment=PP_ALIGN.CENTER)
 
 # ========== Slide 4b: Lexical Richness & Readability Deep Dive ==========
@@ -657,29 +642,29 @@ add_text_box(slide, 0.8, 5.5, 12, 0.8,
 # ========== Slide 14d: Three-Layer Ablation Heatmap ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
-add_text_box(slide, 0.8, 0.4, 12, 0.8, "三层特征消融: 5 数据集全景", 32, ACCENT, bold=True)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "两层消融 + Model-Based Sub-group 分析", 32, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 8)
 
 add_image_safe(slide, FIG / "three_layer_heatmap.png", 0.3, 1.3, width=7.5, height=5.5)
 
 add_text_box(slide, 8.2, 1.4, 4.8, 0.5, "核心发现", 20, ACCENT, bold=True)
 add_bullet_list(slide, 8.2, 2.0, 4.8, 5, [
-    "RAID: stat (0.994) + token (0.990)",
-    "  → 两层互补, all=0.999",
+    "Model-Based 三个 sub-group",
+    "行为完全不同:",
     "",
-    "SemEval: 只有 token 有效 (0.976)",
-    "  stat/model 均 ~0.51 (纯噪声)",
-    "  model+token=0.961 > all=0.847",
-    "  → 纯统计特征是噪声源!",
+    "BERT-emb: HC3/Pile 有效,",
+    "  SemEval/TB 失效",
     "",
-    "TuringBench: model 最强 (0.975)",
-    "  stat=0.67, token=0.52",
-    "  → BERT embedding 捕捉老 AI 风格",
+    "GPT2-ppl: HC3=0.99, TB=0.97",
+    "  但 RAID=0.49 (Perplexity Paradox)",
     "",
-    "HC3: stat+model 已饱和 (0.999)",
+    "Mistral-token: RAID=0.99,",
+    "  SemEval=0.98",
+    "  但 HC3/TB/Pile ≈ 0.50",
     "",
-    "Pile: stat 主导 (0.962)",
-], font_size=13, color=LIGHT)
+    "→ 每个参考模型都有自己的",
+    "  \"有效期\", 取决于目标 AI 的时代",
+], font_size=12, color=LIGHT)
 
 # ========== Slide 15: RAID vs HC3 ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -719,21 +704,21 @@ add_text_box(slide, 0.8, 0.4, 10, 0.8, "结论", 36, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 4)
 
 conclusions = [
-    "1. 三层 118 维特征体系在 RAID 上达 AUC 0.9992",
-    "    纯统计 + 模型衍生 + Token 概率, 完全可解释",
+    "1. 两层 118 维特征体系在 RAID 上达 AUC 0.9992",
+    "    Model-Free (36维) + Model-Based (82维), 完全可解释",
     "",
-    "2. 不同层在不同场景各有\"保质期\"",
-    "    纯统计: 老 AI 强, 新 AI 失效 (SemEval ~0.52)",
-    "    模型衍生: 依赖参考模型, 跨系失效 (RAID perplexity 0.49)",
-    "    Token: 只认同代 AI (TuringBench ~0.52)",
+    "2. Model-Based 内部三个 sub-group 各有\"有效期\"",
+    "    BERT-emb: 通用语义特征, HC3/Pile 有效",
+    "    GPT2-ppl: 只认 GPT 家族 (HC3=0.99, RAID=0.49)",
+    "    Mistral-token: 只认同代 AI (SemEval=0.98, TB=0.52)",
     "",
-    "3. 互补效果取决于信号强度",
-    "    RAID: stat+token → AUC +0.005 (两侧有信号)",
-    "    SemEval: model+token (0.961) > all (0.847)",
+    "3. Model-Free 对老 AI 有效 (RAID=0.994)",
+    "    但新 AI 已在统计上逼近人类 (SemEval=0.52)",
     "",
-    "4. 统计特征对 10/11 种对抗攻击天然鲁棒",
+    "4. 盲目合并会更差 (噪声稀释)",
+    "    SemEval: model-based=0.961 > all=0.847",
     "",
-    "5. Auto-Filter 基于组级 AUC 自动检测噪声",
+    "5. Auto-Filter 自动检测并丢弃噪声特征组",
 ]
 add_bullet_list(slide, 0.8, 1.5, 11, 5.5, conclusions, font_size=18, color=LIGHT, spacing=0.8)
 

@@ -19,7 +19,7 @@
 \email{anonymous@example.com}
 
 \begin{abstract}
-The proliferation of large language models (LLMs) has made AI-generated text increasingly difficult to distinguish from human writing. Existing detection methods often rely on black-box deep learning models that lack interpretability. In this work, we propose a fully interpretable detection framework based on a \textbf{three-layer feature taxonomy}: (1)~36 pure statistical features (lexical richness, readability, punctuation), (2)~52 model-derived features (BERT embeddings, GPT-2 perplexity), and (3)~30 token-level probability features from Mistral-7B. We conduct extensive experiments on RAID~(ACL 2024)---covering 11 generators, 8 domains, and 11 adversarial attacks---and validate on four additional datasets (HC3, SemEval 2024, TuringBench, Pile). Our XGBoost classifier achieves \textbf{AUC 0.9992} with all 118 features on RAID. Through three-layer ablation across 5 datasets, we discover that \textbf{each layer has a distinct ``shelf life''}: statistical features fail on new AI (SemEval AUC~0.52), GPT-2 perplexity only detects GPT-family text (HC3=0.99, RAID=0.49), and Mistral-7B token features only work on contemporaneous generators (TuringBench~0.52). We propose an \textbf{Auto-Filter} mechanism that detects and discards noise feature groups before training, preventing noise dilution when combining layers.
+The proliferation of large language models (LLMs) has made AI-generated text increasingly difficult to distinguish from human writing. We propose a fully interpretable detection framework based on a \textbf{two-layer feature taxonomy}: (1)~36 model-free statistical features (lexical richness, readability, punctuation) requiring no neural network inference, and (2)~82 model-based features from three reference models (BERT embeddings, GPT-2 perplexity, Mistral-7B token probabilities). We achieve \textbf{AUC 0.9992} on the RAID benchmark (11 generators, 8 domains, 11 adversarial attacks). Through ablation across 5 datasets, we discover that \textbf{each reference model has a distinct ``shelf life''}: GPT-2 perplexity only detects GPT-family text (HC3=0.99, RAID=0.49), Mistral-7B token features only work on contemporaneous generators (TuringBench=0.52), and model-free features fail on newest AI (SemEval=0.52). We propose an \textbf{Auto-Filter} mechanism that prevents noise dilution when combining layers.
 \end{abstract}
 
 \keywords{AI-generated text detection, interpretable machine learning, feature engineering, SHAP, adversarial robustness}
@@ -38,9 +38,9 @@ While the first two paradigms have received considerable attention, feature-base
 \textbf{Contributions.} This paper makes the following contributions:
 
 \begin{enumerate}
-    \item We propose a \textbf{three-layer feature taxonomy} (statistical / model-derived / token-level) with 118 interpretable features, achieving AUC 0.9992 on RAID.
-    \item We conduct the first \textbf{three-layer ablation study across 5 datasets}, revealing that each layer has a distinct ``shelf life'' tied to the AI generation era.
-    \item We discover the \textbf{noise dilution problem}: na\"{i}vely combining all layers can \emph{hurt} performance (SemEval: token-only 0.976 $\rightarrow$ all 0.847), and propose an \textbf{Auto-Filter} mechanism as a solution.
+    \item We propose a \textbf{two-layer feature taxonomy} (model-free / model-based) with 118 interpretable features, achieving AUC 0.9992 on RAID.
+    \item We conduct ablation across 5 datasets, revealing that each model-based sub-group (BERT, GPT-2, Mistral-7B) has a distinct ``shelf life'' tied to the AI generation era.
+    \item We discover the \textbf{noise dilution problem}: na\"{i}vely combining all features can \emph{hurt} performance (SemEval: model-based 0.961 $\rightarrow$ all 0.847), and propose \textbf{Auto-Filter} as a solution.
     \item Through SHAP analysis and cross-dataset comparison, we identify the \textbf{perplexity paradox} and \textbf{temporal alignment} phenomena.
 \end{enumerate}
 
@@ -62,21 +62,21 @@ RAID~\cite{dugan2024raid} addresses the limitations of prior benchmarks by provi
 %% ============================================================
 \section{Methodology}
 
-We organize our 118 features into a three-layer taxonomy based on their computational dependencies:
+We organize our 118 features into a two-layer taxonomy based on whether they require neural network inference:
 
-\subsection{Layer 1: Statistical Features ($\sim$36 dim)}
+\subsection{Layer 1: Model-Free Features ($\sim$36 dim)}
 
-Pure text statistics requiring no neural network inference:
+Pure text statistics computed without any pretrained model:
 
 \begin{table}[t]
-\caption{Three-layer feature taxonomy (118 dimensions).}
+\caption{Two-layer feature taxonomy (118 dimensions).}
 \label{tab:features}
 \small
 \begin{tabular}{llp{3.8cm}}
 \toprule
 \textbf{Layer / Group} & \textbf{Dim} & \textbf{Examples} \\
 \midrule
-\multicolumn{3}{l}{\textit{Layer 1: Statistical (no model dependency)}} \\
+\multicolumn{3}{l}{\textit{Layer 1: Model-Free (no neural network)}} \\
 \quad basic\_counts    & 4  & word/char/sentence/paragraph count \\
 \quad averages         & 4  & avg word/sentence length \\
 \quad variability      & 2  & word/sentence length std \\
@@ -85,19 +85,15 @@ Pure text statistics requiring no neural network inference:
 \quad readability      & 7  & Flesch, Gunning Fog, SMOG \\
 \quad structure        & 1  & short sentence ratio \\
 \midrule
-\multicolumn{3}{l}{\textit{Layer 2: Model-derived (BERT, GPT-2)}} \\
-\quad embedding\_pca   & 50 & BERT sentence embedding $\rightarrow$ PCA \\
-\quad perplexity       & 2  & GPT-2 perplexity + log \\
-\midrule
-\multicolumn{3}{l}{\textit{Layer 3: Token-level (Mistral-7B)}} \\
-\quad log-probability  & 10 & mean, std, skew, kurtosis, etc. \\
-\quad rank             & 10 & mean, top-1/5/10/100 fraction \\
-\quad entropy          & 10 & mean, std, min, max, etc. \\
+\multicolumn{3}{l}{\textit{Layer 2: Model-Based (3 reference models)}} \\
+\quad BERT embedding   & 50 & sentence embedding $\rightarrow$ PCA \\
+\quad GPT-2 perplexity & 2  & text-level perplexity + log \\
+\quad Mistral-7B token & 30 & per-token log-prob, rank, entropy \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-This taxonomy is more principled than the common ``handcrafted vs.\ model-based'' dichotomy: BERT embeddings and GPT-2 perplexity are model-derived features that share the model-dependency limitations of token-level features.
+The key insight of this taxonomy is that BERT embeddings, GPT-2 perplexity, and Mistral-7B token features \textbf{all share the same fundamental limitation}: they depend on a specific reference model, and each reference model has a different ``shelf life'' depending on the target AI generator.
 
 \subsection{Layer 2 \& 3: Model-Derived and Token Features}
 
@@ -263,35 +259,37 @@ Table~\ref{tab:adversarial} shows that \textbf{paraphrase attack is the only str
 \subsection{Cross-Dataset Generalization}
 
 \begin{table}[t]
-\caption{Three-layer ablation across 5 datasets (XGBoost AUC).}
+\caption{Two-layer ablation across 5 datasets (XGBoost AUC). Model-Based sub-groups show distinct effective ranges.}
 \label{tab:threelayer}
 \small
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Config} & \textbf{RAID} & \textbf{HC3} & \textbf{SemEval} & \textbf{TB} & \textbf{Pile} \\
 \midrule
-stat (L1)       & 0.994 & 0.995 & 0.517 & 0.670 & 0.962 \\
-model (L2)      & 0.774 & 0.994 & 0.507 & \textbf{0.975} & 0.896 \\
-token (L3)      & 0.990 & 0.499 & \textbf{0.976} & 0.520 & 0.503 \\
+\multicolumn{6}{l}{\textit{Individual layers / sub-groups}} \\
+model-free     & 0.994 & 0.995 & 0.517 & 0.670 & 0.962 \\
+BERT-emb       & 0.775 & 0.878 & 0.498 & 0.539 & 0.895 \\
+GPT2-ppl       & 0.490 & \textbf{0.989} & 0.511 & \textbf{0.975} & 0.504 \\
+Mistral-token  & 0.990 & 0.499 & \textbf{0.976} & 0.520 & 0.503 \\
 \midrule
-L1+L2           & 0.995 & \textbf{1.000} & 0.517 & 0.989 & \textbf{0.973} \\
-L1+L3           & 0.999 & 0.994 & 0.833 & 0.672 & 0.961 \\
-L2+L3           & 0.994 & 0.994 & 0.961 & 0.970 & 0.894 \\
-all             & \textbf{0.999} & 1.000 & 0.847 & 0.985 & 0.973 \\
+\multicolumn{6}{l}{\textit{Combinations}} \\
+MB (all)        & 0.994 & 0.994 & 0.961 & 0.970 & 0.894 \\
+MF + MB (all)   & \textbf{0.999} & \textbf{1.000} & 0.847 & 0.985 & \textbf{0.973} \\
+auto-filter     & \textbf{0.999} & \textbf{1.000} & 0.837 & 0.981 & \textbf{0.973} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:threelayer} reveals the core finding: \textbf{each layer has a distinct effective range}. Statistical features (L1) are strong on RAID/HC3/Pile but fail on SemEval (new AI). Model-derived features (L2) dominate TuringBench (old AI via BERT embeddings) but fail on RAID (perplexity paradox). Token features (L3) excel on RAID/SemEval (contemporaneous AI) but fail on HC3/Pile/TuringBench (temporal mismatch).
+Table~\ref{tab:threelayer} reveals the core finding: \textbf{each model-based sub-group has a distinct effective range}. GPT-2 perplexity excels on GPT-family text (HC3=0.989, TuringBench=0.975) but fails on diverse generators (RAID=0.490). Mistral-7B token features work on contemporaneous AI (SemEval=0.976) but fail on older generators (TuringBench=0.520). BERT embeddings provide moderate but stable signal across most datasets.
 
-Crucially, na\"{i}vely combining all layers can \emph{hurt}: on SemEval, L2+L3 (0.961) outperforms ``all'' (0.847) because L1's 36 noise features dilute XGBoost's attention from the 30 informative token features.
+Crucially, na\"{i}vely combining all features can \emph{hurt}: on SemEval, model-based alone (0.961) outperforms MF+MB (0.847) because model-free features are pure noise on this dataset, diluting XGBoost's attention from the informative model-based features.
 
 %% ============================================================
 \section{Discussion}
 
 \subsection{Feature Shelf Life and Noise Dilution}
 
-Our three-layer ablation reveals that detection features have ``shelf lives'' tied to the AI generation era. Statistical features were effective against GPT-2/3 era models but have expired for GPT-4/Claude. Token probability features from Mistral-7B are effective on contemporaneous models but fail on older ones. This finding has important implications: a production system must \textbf{dynamically assess which feature layers are informative} for the current detection target.
+Our two-layer ablation reveals that detection features have ``shelf lives'' tied to the AI generation era. Model-free features were effective against GPT-2/3 era models but have expired for GPT-4/Claude. Within model-based features, each reference model captures a different generation era. This finding has important implications: a production system must \textbf{dynamically assess which sub-groups are informative} for the current detection target.
 
 The noise dilution phenomenon (SemEval: token-only 0.976 $\rightarrow$ all 0.847) occurs because XGBoost allocates importance to uninformative features that happen to correlate with labels in training data. Our Auto-Filter mechanism addresses this by dropping groups with near-random signal strength before training.
 
@@ -311,11 +309,11 @@ Our study has several limitations: (1)~the 90-feature pipeline requires GPT-2 an
 %% ============================================================
 \section{Conclusion}
 
-We presented a three-layer interpretable feature taxonomy for AI-generated text detection, comprising statistical, model-derived, and token-level features (118 dimensions total). Through systematic evaluation on RAID and four additional datasets, we demonstrated that:
+We presented a two-layer interpretable feature taxonomy for AI-generated text detection: model-free statistical features and model-based features from three reference models (118 dimensions total). Through systematic evaluation on RAID and four additional datasets, we demonstrated that:
 
 \begin{enumerate}
-    \item \textbf{The three-layer framework achieves AUC 0.9992 on RAID}, rivaling black-box approaches while providing full SHAP-based explainability.
-    \item \textbf{Each feature layer has a distinct ``shelf life''}: statistical features expire as AI improves, perplexity is model-family-specific, and token features require temporal alignment with the observer model.
+    \item \textbf{The two-layer framework achieves AUC 0.9992 on RAID}, rivaling black-box approaches while providing full SHAP-based explainability.
+    \item \textbf{Each model-based sub-group has a distinct ``shelf life''}: BERT embeddings capture broad semantic patterns, GPT-2 perplexity is GPT-family-specific, and Mistral-7B token features require temporal alignment.
     \item \textbf{Na\"{i}ve combination can hurt performance} due to noise dilution; our Auto-Filter mechanism addresses this by detecting and discarding uninformative feature groups.
 \end{enumerate}
 
