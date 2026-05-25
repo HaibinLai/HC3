@@ -509,25 +509,82 @@ add_bullet_list(slide, 7.8, 2.2, 5, 4.5, [
 # ========== Slide 14: Cross-Dataset ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
-add_text_box(slide, 0.8, 0.4, 10, 0.8, "跨数据集验证", 36, ACCENT, bold=True)
-add_accent_line(slide, 0.8, 1.1, 4)
+add_text_box(slide, 0.8, 0.4, 10, 0.8, "跨数据集验证 (5 数据集完整结果)", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
 
-add_image_safe(slide, FIG / "raid_120_cross_dataset.png", 0.3, 1.3, width=7)
+# Full table
+header_items = [("Dataset", 0.8, 2.5), ("90-feat", 3.5, 1.5), ("30-tok", 5.2, 1.5),
+                ("120-mix", 6.9, 1.5), ("Delta", 8.6, 1.5), ("解读", 10.3, 2.5)]
+for name, x, w in header_items:
+    add_text_box(slide, x, 1.4, w, 0.5, name, 16, ACCENT, bold=True)
 
-add_text_box(slide, 7.8, 1.5, 5, 0.6, "120 组合跨数据集", 20, ACCENT, bold=True)
-cross_items = [
-    "RAID:   0.9951 → 0.9992 (+0.0041)",
-    "HC3:    0.9996 → 0.9996 (无变化)",
-    "Pile:   0.9735 → 0.9727 (略降)",
-    "",
-    "为什么只在 RAID 有效?",
-    "  RAID: 多代际生成器 → 互补空间大",
-    "  HC3:  单模型已饱和 → 无提升空间",
-    "  Pile: 老模型 → Token 特征是噪声",
-    "",
-    "互补性在多模型跨代场景最有价值",
+rows = [
+    ("RAID (多代际)", "0.9951", "0.9900", "0.9992", "+0.004", "两侧有信号 → 互补", ACCENT3),
+    ("SemEval (纯新AI)", "0.5136", "0.9766", "0.8443", "-0.132", "噪声稀释!", ACCENT2),
+    ("TuringBench (纯老AI)", "0.9899", "0.4935", "0.9847", "-0.005", "token噪声少,影响小", LIGHT),
+    ("HC3 (单模型)", "0.9996", "0.4986", "0.9996", "+0.000", "已饱和,无提升空间", GRAY),
+    ("Pile (老模型)", "0.9735", "0.5026", "0.9727", "-0.001", "同上", GRAY),
 ]
-add_bullet_list(slide, 7.8, 2.2, 5, 4.5, cross_items, font_size=15, color=LIGHT)
+for i, (ds, a90, a30, a120, delta, note, clr) in enumerate(rows):
+    y = 2.1 + i * 0.75
+    add_text_box(slide, 0.8, y, 2.5, 0.5, ds, 14, clr, bold=True)
+    add_text_box(slide, 3.5, y, 1.5, 0.5, a90, 14, ACCENT2 if a90.startswith("0.51") else WHITE)
+    add_text_box(slide, 5.2, y, 1.5, 0.5, a30, 14, ACCENT2 if a30.startswith("0.49") else WHITE)
+    add_text_box(slide, 6.9, y, 1.5, 0.5, a120, 14, clr)
+    add_text_box(slide, 8.6, y, 1.5, 0.5, delta, 14, ACCENT3 if delta.startswith("+0.004") else ACCENT2 if delta.startswith("-0.1") else LIGHT)
+    add_text_box(slide, 10.3, y, 2.5, 0.5, note, 12, GRAY)
+
+add_text_box(slide, 0.8, 6.0, 12, 0.8,
+    "核心规律: 120 组合只在两侧特征都有信号时互补增强 (RAID)\n"
+    "当一侧是纯噪声时，噪声特征越多稀释越严重 (SemEval: 88噪声 vs 30有效 → AUC -0.13)",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
+
+# ========== Slide 14b: Noise Dilution Deep Dive ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "SemEval: 噪声特征稀释现象剖析", 32, ACCENT2, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+add_text_box(slide, 0.8, 1.4, 5.5, 0.6, "为什么 90-feat 在 SemEval 上失效?", 20, WHITE, bold=True)
+add_bullet_list(slide, 0.8, 2.0, 5.5, 2.5, [
+    "88 个特征中 没有一个 AUC > 0.55",
+    "最好的 emb_pca_39 也只有 AUC = 0.5159",
+    "",
+    "说明 GPT-4/Claude 3 等新 AI 已经在",
+    "词汇多样性、句法结构、可读性等所有",
+    "表面统计维度上与人类文本无法区分",
+    "",
+    "→ 手工特征的\"保质期\"正在到来",
+], font_size=15, color=LIGHT)
+
+add_text_box(slide, 7, 1.4, 5.5, 0.6, "XGBoost 的过拟合机制", 20, WHITE, bold=True)
+add_bullet_list(slide, 7, 2.0, 5.5, 2.5, [
+    "120 维模型中 42.7% importance → 噪声特征",
+    "  punct_semicolon_rate: imp=0.079 (纯噪声!)",
+    "",
+    "噪声特征在训练集上碰巧与标签相关",
+    "XGBoost 把虚假相关当作信号",
+    "测试集上虚假信号不成立 → 拖累预测",
+    "",
+    "→ 88 个噪声 vs 30 个有效 = 稀释严重",
+], font_size=15, color=LIGHT)
+
+# Bottom: progressive degradation
+add_text_box(slide, 0.8, 5.0, 12, 0.5, "逐步加入 90-feat 的效果 (越多噪声越差):", 18, ACCENT, bold=True)
+steps = [
+    ("30 tok alone", "0.9766", ACCENT3),
+    ("+ top5 90-feat (35维)", "0.9719", ACCENT3),
+    ("+ top10 90-feat (40维)", "0.9436", RGBColor(0xFF, 0xC1, 0x07)),
+    ("+ all 88 feat (118维)", "0.8443", ACCENT2),
+]
+for i, (label, auc, clr) in enumerate(steps):
+    x = 0.8 + i * 3.1
+    add_text_box(slide, x, 5.5, 2.8, 0.4, label, 14, LIGHT)
+    add_text_box(slide, x, 5.9, 2.8, 0.5, f"AUC = {auc}", 20, clr, bold=True)
+
+add_text_box(slide, 0.8, 6.6, 12, 0.5,
+    "启示: 生产系统需要特征选择/门控 — 先评估各特征组信号强度，动态决定使用哪些特征",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
 
 # ========== Slide 15: RAID vs HC3 ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
