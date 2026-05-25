@@ -183,6 +183,155 @@ add_text_box(slide, 0.8, 6.5, 11, 0.5,
     "核心理念：手工特征看\"文本的外表\"，Token 特征看\"文本在 AI 眼中的内在\"",
     16, ACCENT, alignment=PP_ALIGN.CENTER)
 
+# ========== Slide 4b: Lexical Richness & Readability Deep Dive ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "手工特征详解：词汇丰富度 & 可读性", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+# Left column: Lexical Richness
+add_text_box(slide, 0.8, 1.4, 5.5, 0.6, "Lexical Richness (词汇丰富度) — 7 维", 20, ACCENT2, bold=True)
+add_bullet_list(slide, 0.8, 2.0, 5.8, 4.5, [
+    "Type-Token Ratio (TTR)",
+    "  不重复词数 / 总词数, 衡量词汇多样性",
+    "  AI 倾向反复使用\"furthermore, however, overall\"",
+    "",
+    "Hapax Legomena Ratio",
+    "  只出现一次的词占比, 人类用词更\"独特\"",
+    "",
+    "Yule's K & Simpson's Diversity",
+    "  基于词频分布的数学度量",
+    "  Yule's K 越大 → 词汇越集中(越像 AI)",
+    "",
+    "Brunet's W",
+    "  W = N^(V^-0.172), 对文本长度鲁棒的丰富度指标",
+], font_size=14, color=LIGHT)
+
+# Right column: Readability
+add_text_box(slide, 7, 1.4, 5.5, 0.6, "Readability (可读性) — 7 维", 20, ACCENT3, bold=True)
+add_bullet_list(slide, 7, 2.0, 5.8, 4.5, [
+    "Flesch Reading Ease  (0-100)",
+    "  206.835 - 1.015×(词/句) - 84.6×(音节/词)",
+    "  AI 文本通常 50-65 分, 人类分布更广",
+    "",
+    "Flesch-Kincaid Grade Level",
+    "  输出\"需要几年级才能读懂\", AI 偏好 9-12 级",
+    "",
+    "Gunning Fog Index",
+    "  关注\"复杂词\"(≥3音节)的比例",
+    "",
+    "Coleman-Liau Index",
+    "  基于字符数而非音节, 更适合计算机处理",
+    "",
+    "SMOG, ARI, Dale-Chall",
+    "  不同侧面的可读性评估",
+], font_size=14, color=LIGHT)
+
+add_text_box(slide, 0.8, 6.5, 12, 0.5,
+    "AI 倾向于生成\"中等难度\"的文本 (Flesch 50-65), 而人类文本的可读性分布更极端 (20-90+)",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
+
+# ========== Slide 4c: Structural & Punctuation Features ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "手工特征详解：结构 & 标点 & 嵌入", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+# Left: Structure + Punctuation
+add_text_box(slide, 0.8, 1.4, 5.8, 0.6, "结构 & 标点特征 — 16 维", 20, ACCENT2, bold=True)
+add_bullet_list(slide, 0.8, 2.0, 5.8, 2.5, [
+    "words_per_paragraph  (RAID 最强单特征, AUC 0.89)",
+    "  AI 平均每段 ~70 词, 人类 ~200 词",
+    "  AI 喜欢\"分点陈述\", 段落短而规则",
+    "",
+    "sentence_length_std  (AUC 0.83)",
+    "  AI 的句子长度标准差更小 → 节奏更\"机械\"",
+    "  人类写作句长波动大 (短句+长句交替)",
+    "",
+    "标点使用率: 逗号、问号、感叹号、冒号...",
+    "  AI 很少用感叹号, 问号使用更规范",
+    "  人类更随意: \"!!!\" \"...\" \"—\"",
+], font_size=14, color=LIGHT)
+
+# Right: Embedding PCA + Perplexity
+add_text_box(slide, 7, 1.4, 5.8, 0.6, "语义嵌入 & 困惑度 — 52 维", 20, ACCENT3, bold=True)
+add_bullet_list(slide, 7, 2.0, 5.8, 2.5, [
+    "BERT Sentence Embedding → PCA 50 维",
+    "  将文本映射到 BERT 语义空间",
+    "  PCA 降维后保留主要语义方向",
+    "  AI 文本在语义空间中更\"集中\"",
+    "",
+    "GPT-2 Perplexity (2 维)",
+    "  原始困惑度 + log 困惑度",
+    "  HC3 上是最强特征 (AUC 0.99)",
+    "  但 RAID 上完全失效 (AUC 0.49)",
+    "  → Perplexity Paradox (后面详述)",
+], font_size=14, color=LIGHT)
+
+# Bottom: boxplot
+add_image_safe(slide, FIG / "raid_single_feature_boxplot.png", 0.5, 4.8, width=12, height=2.5)
+
+# ========== Slide 4d: Token Feature Case Study ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "Token 概率特征：Case Study 热力图", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+add_image_safe(slide, FIG / "raid_token_heatmap.png", 0.2, 1.2, width=7.5, height=5.5)
+
+add_text_box(slide, 8, 1.4, 5, 0.5, "如何阅读热力图", 20, ACCENT, bold=True)
+add_bullet_list(slide, 8, 2.0, 5, 4.5, [
+    "每个格子 = 一个 token",
+    "颜色 = Mistral-7B 给出的 log-prob",
+    "  深绿 = 高概率 (\"意料之中\")",
+    "  深红 = 低概率 (\"出乎意料\")",
+    "",
+    "人类文本 (上半部分):",
+    "  红色格子多 → 用词\"出人意料\"",
+    "  log-prob 分布更分散",
+    "",
+    "AI 文本 (下半部分):",
+    "  几乎全绿 → token 选择\"可预测\"",
+    "  AI 倾向选择高概率的 token",
+    "",
+    "→ 这就是 rank_top1_frac 能区分",
+    "  AI vs 人类的直觉来源",
+], font_size=14, color=LIGHT)
+
+add_text_box(slide, 0.8, 6.8, 12, 0.5,
+    "AI 生成的文本在 Mistral 眼中\"一路绿灯\" — 每个 token 都是高概率选择",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
+
+# ========== Slide 4e: Token Feature Distributions ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "Token 特征的统计分布：Human vs AI", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+add_image_safe(slide, FIG / "raid_token_distributions.png", 0.3, 1.2, width=7, height=5)
+
+add_text_box(slide, 7.8, 1.4, 5, 0.5, "核心 Token 特征解读", 20, ACCENT, bold=True)
+add_bullet_list(slide, 7.8, 2.0, 5, 5, [
+    "rank_top1_frac (top-1 命中率)",
+    "  AI: ~0.72  人类: ~0.58",
+    "  AI 有 72% 的 token 是 Mistral 的首选",
+    "",
+    "lp_mean (平均 log-probability)",
+    "  AI: ~ -1.8  人类: ~ -2.8",
+    "  AI 文本整体\"更可预测\"",
+    "",
+    "ent_mean (平均 entropy)",
+    "  AI: ~1.5  人类: ~2.2",
+    "  AI 选词更\"确定\", 人类更\"随机\"",
+    "",
+    "这 3 个特征在 RAID 的 SHAP 分析中",
+    "都位列 Top-15, 与手工特征互补",
+], font_size=14, color=LIGHT)
+
+add_text_box(slide, 0.8, 6.5, 12, 0.5,
+    "Violin plot 清晰展示: AI 的 token 概率分布更\"确定\"(高 lp, 高 rank, 低 entropy)",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
+
 # ========== Slide 5: Main Results ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
