@@ -630,9 +630,11 @@ for name, x, w in af_header:
     add_text_box(slide, x, 2.0, w, 0.4, name, 15, ACCENT, bold=True)
 
 af_rows = [
-    ("RAID", "0.9992", "0.9992", "drop 2 组 (无影响)", LIGHT),
-    ("SemEval", "0.8443", "0.9763", "drop 全部9组 → tok-only", ACCENT3),
-    ("TuringBench", "0.9847", "0.9847", "drop 0 组 (无影响)", LIGHT),
+    ("RAID", "0.9991", "0.9992", "drop 2组 (structure,perplexity)", LIGHT),
+    ("HC3", "0.9995", "0.9996", "drop 0组", LIGHT),
+    ("SemEval", "0.8468", "0.8371", "drop 1组 (perplexity)", ACCENT2),
+    ("TuringBench", "0.9853", "0.9812", "drop 3组 (readability,struct,emb)", ACCENT2),
+    ("Pile", "0.9727", "0.9727", "drop 0组", LIGHT),
 ]
 for i, (ds, before, after, note, clr) in enumerate(af_rows):
     y = 2.6 + i * 0.65
@@ -648,9 +650,36 @@ for i, (_, _, _, note, _) in enumerate(af_rows):
     add_text_box(slide, 7.0, y + 0.3, 5.5, 0.3, note, 11, GRAY)
 
 add_text_box(slide, 0.8, 5.5, 12, 0.8,
-    "Auto-Filter 是\"只赚不赔\"策略: RAID/TuringBench 性能不变, SemEval AUC 从 0.84 恢复到 0.98\n"
-    "已集成到项目 pipeline: src/auto_filter.py",
+    "Auto-Filter 以组级 AUC < 0.52 为门槛自动丢弃噪声特征组\n"
+    "关键发现: SemEval 上 model+token (0.9610) 远优于 all (0.8468) → 纯统计特征是噪声源",
     16, ACCENT, alignment=PP_ALIGN.CENTER)
+
+# ========== Slide 14d: Three-Layer Ablation Heatmap ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "三层特征消融: 5 数据集全景", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+add_image_safe(slide, FIG / "three_layer_heatmap.png", 0.3, 1.3, width=7.5, height=5.5)
+
+add_text_box(slide, 8.2, 1.4, 4.8, 0.5, "核心发现", 20, ACCENT, bold=True)
+add_bullet_list(slide, 8.2, 2.0, 4.8, 5, [
+    "RAID: stat (0.994) + token (0.990)",
+    "  → 两层互补, all=0.999",
+    "",
+    "SemEval: 只有 token 有效 (0.976)",
+    "  stat/model 均 ~0.51 (纯噪声)",
+    "  model+token=0.961 > all=0.847",
+    "  → 纯统计特征是噪声源!",
+    "",
+    "TuringBench: model 最强 (0.975)",
+    "  stat=0.67, token=0.52",
+    "  → BERT embedding 捕捉老 AI 风格",
+    "",
+    "HC3: stat+model 已饱和 (0.999)",
+    "",
+    "Pile: stat 主导 (0.962)",
+], font_size=13, color=LIGHT)
 
 # ========== Slide 15: RAID vs HC3 ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -690,20 +719,21 @@ add_text_box(slide, 0.8, 0.4, 10, 0.8, "结论", 36, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 4)
 
 conclusions = [
-    "1. XGBoost + 120 维组合特征在 RAID 上达到 AUC 0.9992",
-    "    完全可解释，超越零样本方法 Fast-DetectGPT (0.7815)",
+    "1. 三层 118 维特征体系在 RAID 上达 AUC 0.9992",
+    "    纯统计 + 模型衍生 + Token 概率, 完全可解释",
     "",
-    "2. 两类特征视角正交，互补覆盖盲区",
-    "    手工特征看\"文本外表\"，Token 特征看\"AI 内在\"",
+    "2. 不同层在不同场景各有\"保质期\"",
+    "    纯统计: 老 AI 强, 新 AI 失效 (SemEval ~0.52)",
+    "    模型衍生: 依赖参考模型, 跨系失效 (RAID perplexity 0.49)",
+    "    Token: 只认同代 AI (TuringBench ~0.52)",
     "",
-    "3. GPT-2 困惑度的 Paradox 是重要发现",
-    "    HC3 最强 (0.99) → RAID 完全失效 (0.49)",
+    "3. 互补效果取决于信号强度",
+    "    RAID: stat+token → AUC +0.005 (两侧有信号)",
+    "    SemEval: model+token (0.961) > all (0.847)",
     "",
     "4. 统计特征对 10/11 种对抗攻击天然鲁棒",
-    "    只有释义攻击能显著降低检测效果",
     "",
-    "5. Token 概率特征有\"时代窗口\"",
-    "    观察者模型需要与目标生成器同代",
+    "5. Auto-Filter 基于组级 AUC 自动检测噪声",
 ]
 add_bullet_list(slide, 0.8, 1.5, 11, 5.5, conclusions, font_size=18, color=LIGHT, spacing=0.8)
 
