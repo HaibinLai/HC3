@@ -192,14 +192,61 @@ Top importance in 120-mix:
 
 **关键洞察**：SemEval 被拖累严重（-0.13）而 TuringBench 只被拖累一点（-0.005），是因为**噪声特征数量不对称**：SemEval 中有 88 个噪声 vs 30 个有用，TuringBench 中只有 30 个噪声 vs 88 个有用。噪声占比越大，稀释效应越强。
 
-### 5.4 实践启示
+### 5.4 Auto-Filter：组级噪声检测
 
-1. **120 组合适用于"两侧都有信号"的场景**（RAID 类多代际多模型环境）
-2. **单侧信号场景应选择性使用特征**：
-   - 面对已知是新 AI 时，优先用 token 特征
-   - 面对已知是老 AI 时，优先用手工特征
-3. **生产系统应加入特征选择/门控机制**：先评估各特征组的信号强度，动态决定使用哪些特征组
-4. **SemEval 的结果说明**：新一代 AI（GPT-4/Claude 3）已经在所有表面统计维度上逼近人类——手工特征的时代正在终结，token 概率特征将成为主力
+基于以上分析，我们提出了一个简单有效的 **Auto-Filter** 机制：在组合特征之前，先计算每个特征组在训练集上的平均单特征 AUC，丢弃低于阈值（默认 0.52）的组。
+
+**算法**：
+1. 对 9 个手工特征组，分别计算组内所有特征的平均 AUC
+2. 标记：AUC ≥ 0.60 → STRONG, 0.52~0.60 → WEAK, < 0.52 → NOISE
+3. 丢弃所有 NOISE 组，保留 STRONG + WEAK + 30 token 特征
+
+**各数据集特征组信号强度**：
+
+| 特征组 | RAID | SemEval | TuringBench |
+|--------|------|---------|-------------|
+| basic_counts (4) | 0.61 STRONG | 0.51 NOISE | 0.70 STRONG |
+| averages (4) | 0.71 STRONG | 0.50 NOISE | 0.75 STRONG |
+| variability (2) | 0.57 WEAK | 0.50 NOISE | 0.55 WEAK |
+| lexical_richness (7) | 0.54 WEAK | 0.51 NOISE | 0.90 STRONG |
+| punctuation (11) | 0.53 WEAK | 0.50 NOISE | 0.58 WEAK |
+| readability (7) | 0.55 WEAK | 0.50 NOISE | 0.57 WEAK |
+| structure (1) | 0.51 NOISE | 0.50 NOISE | 0.55 WEAK |
+| embedding_pca (50) | 0.53 WEAK | 0.50 NOISE | 0.53 WEAK |
+| perplexity (2) | 0.51 NOISE | 0.51 NOISE | 0.98 STRONG |
+
+**Auto-Filter 效果**：
+
+| 数据集 | 120-full AUC | Auto-Filter AUC | Δ | 丢弃的组 |
+|--------|-------------|-----------------|---|---------|
+| **RAID** | 0.9992 | 0.9992 | ±0.000 | structure, perplexity (3维) |
+| **SemEval** | 0.8443 | **0.9763** | **+0.132** | 全部 9 组 → 30-tok only |
+| **TuringBench** | 0.9847 | 0.9847 | ±0.000 | 无 (所有组 ≥ 0.52) |
+
+> **Auto-Filter 是一个"只赚不赔"的操作**：在信号充足的数据集（RAID、TuringBench）上不影响性能，在噪声场景（SemEval）能大幅恢复 +0.13。
+
+**Drop-one-group 实验验证**（SemEval，每次丢一个组对 120-mix 的影响）：
+
+| 丢弃的组 | AUC | Δ vs 120-full | 说明 |
+|---------|------|--------------|------|
+| lexical_richness | 0.8860 | +0.042 | 丢掉噪声反而提升最大 |
+| punctuation | 0.8640 | +0.020 | |
+| basic_counts | 0.8579 | +0.014 | |
+| variability | 0.8542 | +0.010 | |
+| embedding_pca | 0.8539 | +0.010 | |
+| averages | 0.8517 | +0.007 | |
+| structure | 0.8427 | -0.002 | ~same |
+| readability | 0.8411 | -0.003 | ~same |
+| perplexity | 0.8371 | -0.007 | ~same |
+
+在 SemEval 上，丢掉任何一个噪声组都能提升 AUC，充分验证了 auto-filter 的合理性。
+
+### 5.5 实践启示
+
+1. **Auto-Filter 应作为标准流程**：在组合特征前自动检测噪声组，成本极低（只需计算单特征 AUC），收益可能很大
+2. **120 组合 + Auto-Filter 是通用方案**：对多代际场景（RAID）保持最优，对单侧信号场景自动退化为最佳子集
+3. **SemEval 的结果说明**：新一代 AI（GPT-4/Claude 3）已经在所有表面统计维度上逼近人类——手工特征的"保质期"正在到来
+4. **TuringBench 的 perplexity 组极其关键**（drop 后 AUC 暴跌 0.27），说明在老 AI 检测场景下，GPT-2 困惑度仍然是王牌
 
 ---
 

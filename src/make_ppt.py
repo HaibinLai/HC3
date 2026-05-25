@@ -586,6 +586,53 @@ add_text_box(slide, 0.8, 6.6, 12, 0.5,
     "启示: 生产系统需要特征选择/门控 — 先评估各特征组信号强度，动态决定使用哪些特征",
     15, ACCENT, alignment=PP_ALIGN.CENTER)
 
+# ========== Slide 14c: Auto-Filter Solution ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "解决方案: Auto-Filter 噪声特征自动过滤", 32, ACCENT3, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+add_text_box(slide, 0.8, 1.4, 5.5, 0.6, "机制: 组级信号强度检测", 20, WHITE, bold=True)
+add_bullet_list(slide, 0.8, 2.0, 5.5, 2.5, [
+    "对每组特征计算平均单特征 AUC",
+    "  avg_AUC = mean(max(AUC_i, 1-AUC_i))",
+    "丢弃 avg AUC < 0.52 的组 (近随机)",
+    "余下特征 + 30 token → 组合训练",
+    "",
+    "只用训练集评估 → 不泄露测试信息",
+    "O(n·p) 开销 → 几秒完成",
+], font_size=15, color=LIGHT)
+
+add_text_box(slide, 7, 1.4, 5.5, 0.6, "跨数据集 Auto-Filter 结果", 20, WHITE, bold=True)
+
+# Table
+af_header = [("Dataset", 7.0, 2.2), ("Before", 9.3, 1.3), ("After", 10.7, 1.3)]
+for name, x, w in af_header:
+    add_text_box(slide, x, 2.0, w, 0.4, name, 15, ACCENT, bold=True)
+
+af_rows = [
+    ("RAID", "0.9992", "0.9992", "drop 2 组 (无影响)", LIGHT),
+    ("SemEval", "0.8443", "0.9763", "drop 全部9组 → tok-only", ACCENT3),
+    ("TuringBench", "0.9847", "0.9847", "drop 0 组 (无影响)", LIGHT),
+]
+for i, (ds, before, after, note, clr) in enumerate(af_rows):
+    y = 2.6 + i * 0.65
+    add_text_box(slide, 7.0, y, 2.2, 0.4, ds, 14, clr)
+    add_text_box(slide, 9.3, y, 1.3, 0.4, before, 14, WHITE)
+    add_text_box(slide, 10.7, y, 1.3, 0.4, after, 14, ACCENT3 if after != before else WHITE)
+
+add_text_box(slide, 7, 4.8, 5.5, 0.4, note if False else "", 12, GRAY)
+
+# Notes for each row
+for i, (_, _, _, note, _) in enumerate(af_rows):
+    y = 2.6 + i * 0.65
+    add_text_box(slide, 7.0, y + 0.3, 5.5, 0.3, note, 11, GRAY)
+
+add_text_box(slide, 0.8, 5.5, 12, 0.8,
+    "Auto-Filter 是\"只赚不赔\"策略: RAID/TuringBench 性能不变, SemEval AUC 从 0.84 恢复到 0.98\n"
+    "已集成到项目 pipeline: src/auto_filter.py",
+    16, ACCENT, alignment=PP_ALIGN.CENTER)
+
 # ========== Slide 15: RAID vs HC3 ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
