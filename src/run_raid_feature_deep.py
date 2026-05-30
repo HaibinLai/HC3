@@ -61,18 +61,18 @@ def compute_single_feature_stats(X_test, y_test):
 
 
 def plot_single_feature_auc(stats_df):
-    """Bar chart of top-40 single-feature AUCs."""
-    top = stats_df.head(40)
-    fig, ax = plt.subplots(figsize=(10, 12))
+    """Bar chart of top-10 single-feature AUCs."""
+    top = stats_df.head(10)
+    fig, ax = plt.subplots(figsize=(10, 6))
     colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(top)))
     ax.barh(range(len(top)-1, -1, -1), top['auc'].values, color=colors)
     ax.set_yticks(range(len(top)-1, -1, -1))
-    ax.set_yticklabels(top['feature'].values, fontsize=9)
+    ax.set_yticklabels(top['feature'].values, fontsize=11)
     ax.set_xlabel('ROC AUC (single feature)')
-    ax.set_title('RAID: Single Feature AUC Ranking (Top 40)')
+    ax.set_title('RAID: Single Feature AUC Ranking (Top 10)')
     ax.set_xlim(0.5, 1.0)
     for i, v in enumerate(top['auc'].values):
-        ax.text(v + 0.003, len(top)-1-i, f'{v:.4f}', va='center', fontsize=8)
+        ax.text(v + 0.003, len(top)-1-i, f'{v:.4f}', va='center', fontsize=10)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_single_feature_auc.png', dpi=150, bbox_inches='tight')
     plt.close()
