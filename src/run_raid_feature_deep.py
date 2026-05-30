@@ -124,6 +124,62 @@ def plot_single_feature_boxplot(X_test, y_test, stats_df):
     print(f"  Saved: raid_single_feature_boxplot.png")
 
 
+def plot_model_based_boxplot(X_test, y_test, stats_df):
+    """Boxplots for top Model-Based features (emb_pca + perplexity)."""
+    mb_df = stats_df[stats_df['feature'].str.startswith(('emb_pca_', 'gpt2_'))].reset_index(drop=True)
+    top6 = mb_df.head(6)['feature'].values
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+    for idx, (feat, ax) in enumerate(zip(top6, axes.flat)):
+        plot_data = pd.DataFrame({
+            'value': X_test[feat].values,
+            'label': ['Human' if y == 0 else 'AI' for y in y_test]
+        })
+        sns.boxplot(data=plot_data, x='label', y='value', ax=ax,
+                    palette={'Human': '#2196F3', 'AI': '#FF9800'}, showfliers=False)
+        ax.set_title(feat, fontsize=12, fontweight='bold')
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+    plt.suptitle('RAID: Top Model-Based Features — Human vs AI Boxplot', fontsize=14, y=1.01)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / 'raid_model_based_boxplot.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  Saved: raid_model_based_boxplot.png")
+
+
+def plot_token_boxplot(X_tok_test, y_test):
+    """Boxplots for top-6 token features."""
+    from run_raid_analysis import load_token_features
+    # Compute AUC for each token feature
+    records = []
+    for feat in X_tok_test.columns:
+        try:
+            auc = roc_auc_score(y_test, X_tok_test[feat].values)
+            if auc < 0.5:
+                auc = 1 - auc
+        except:
+            auc = 0.5
+        records.append({'feature': feat, 'auc': auc})
+    tok_stats = pd.DataFrame(records).sort_values('auc', ascending=False).reset_index(drop=True)
+    top6 = tok_stats.head(6)['feature'].values
+
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+    for idx, (feat, ax) in enumerate(zip(top6, axes.flat)):
+        plot_data = pd.DataFrame({
+            'value': X_tok_test[feat].values,
+            'label': ['Human' if y == 0 else 'AI' for y in y_test]
+        })
+        sns.boxplot(data=plot_data, x='label', y='value', ax=ax,
+                    palette={'Human': '#2196F3', 'AI': '#F44336'}, showfliers=False)
+        ax.set_title(feat, fontsize=12, fontweight='bold')
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+    plt.suptitle('RAID: Top Token Features — Human vs AI Boxplot', fontsize=14, y=1.01)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / 'raid_token_boxplot.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  Saved: raid_token_boxplot.png")
+
+
 def plot_generator_radar(test_df, X_test, stats_df):
     """Radar chart: top-8 features × generators."""
     top8 = stats_df.head(8)['feature'].values
@@ -211,9 +267,10 @@ def main():
     print("\n[3/6] Single-feature AUC ranking plot...")
     plot_single_feature_auc(stats_df)
 
-    print("\n[4/6] Top-12 feature distributions & boxplots...")
+    print("\n[4/6] Top feature distributions & boxplots...")
     plot_single_feature_dist(X_test, y_test, stats_df)
     plot_single_feature_boxplot(X_test, y_test, stats_df)
+    plot_model_based_boxplot(X_test, y_test, stats_df)
 
     print("\n[5/6] Per-generator radar chart...")
     plot_generator_radar(test_df, X_test, stats_df)
@@ -247,8 +304,11 @@ def main():
     plt.close()
     print("  Saved: raid_token_feature_auc.png")
 
+    print("\n[Bonus2] Token & Model-Based boxplots...")
+    plot_token_boxplot(tok_te.iloc[:n_te], y_test[:n_te])
+
     print("\n" + "=" * 60)
-    print("Done! Generated 6 figures + 1 CSV.")
+    print("Done! Generated 8 figures + 1 CSV.")
     print("=" * 60)
 
 
