@@ -465,6 +465,78 @@ add_text_box(slide, 0.8, 6.6, 11, 0.5,
     "SHAP 揭示两类特征交错出现在 Top-30 — XGBoost 同时利用两个视角做决策",
     15, ACCENT, alignment=PP_ALIGN.CENTER)
 
+# ========== Slide 8b: SHAP Waterfall — 单样本归因 ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "SHAP Waterfall：单样本归因分析", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 6)
+
+add_image_safe(slide, FIG / "shap_waterfall_118.png", 0.2, 1.3, width=7, height=5.5)
+
+add_text_box(slide, 7.5, 1.4, 5.3, 0.5, "归因解读", 22, ACCENT, bold=True)
+add_bullet_list(slide, 7.5, 2.0, 5.3, 4.5, [
+    "每条 = 一个特征对预测的贡献",
+    "红色 = 推向 AI, 蓝色 = 推向 Human",
+    "",
+    "Top 贡献特征:",
+    "  paragraph_count (+4.09)",
+    "    AI 分段多但段落短",
+    "  words_per_paragraph (+2.55)",
+    "    AI 每段 ~70 词 vs 人类 ~200 词",
+    "  rank_top100_frac (+1.72)",
+    "    AI 的 token 概率分布集中",
+    "",
+    "→ 结构特征 + Token 概率特征",
+    "  共同\"指认\"了这篇 AI 文本",
+], font_size=14, color=LIGHT)
+
+add_text_box(slide, 0.8, 6.8, 12, 0.5,
+    "Waterfall 图定量展示每个特征对预测的贡献 — 实现\"可解释 AI 检测\"",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
+
+# ========== Slide 8c: SHAP 分组归因 ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "SHAP 分组归因：哪类特征最重要？", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 6)
+
+add_image_safe(slide, FIG / "shap_group_bar.png", 0.2, 1.3, width=7.5, height=5)
+
+add_text_box(slide, 8, 1.4, 4.8, 0.5, "各组贡献占比", 22, ACCENT, bold=True)
+add_bullet_list(slide, 8, 2.0, 4.8, 4.5, [
+    "Model-Free (蓝色):",
+    "  basic_counts    21.5%",
+    "  averages        15.2%",
+    "  punctuation      8.3%",
+    "  lexical_richness 8.2%",
+    "  MF 合计 ≈ 58.5%",
+    "",
+    "Model-Based (橙+红):",
+    "  token_prob      20.8%",
+    "  embedding_pca   20.6%",
+    "  perplexity       0.2%",
+    "  MB 合计 ≈ 41.5%",
+    "",
+    "→ 两类特征各贡献约一半",
+    "  缺一不可!",
+], font_size=14, color=LIGHT)
+
+add_text_box(slide, 0.8, 6.5, 12, 0.5,
+    "Model-Free 提供稳定基线 (58%), Model-Based 补充深层信号 (42%) — 互补架构",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
+
+# ========== Slide 8d: 关键特征 Human vs AI 分布 ==========
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "关键特征的 Human vs AI 分布差异", 32, ACCENT, bold=True)
+add_accent_line(slide, 0.8, 1.1, 8)
+
+add_image_safe(slide, FIG / "feature_human_vs_ai.png", 0.3, 1.2, width=12.5, height=5.5)
+
+add_text_box(slide, 0.8, 6.8, 12, 0.5,
+    "AI 文本呈现\"中庸化\"趋势: 可读性集中、句长均匀、词汇重复 — 人类文本分布更极端、更多样",
+    15, ACCENT, alignment=PP_ALIGN.CENTER)
+
 # ========== Slide 9: Perplexity Paradox ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
