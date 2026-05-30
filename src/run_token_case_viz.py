@@ -68,7 +68,7 @@ def get_token_details(text, model, tokenizer, device, max_length=512):
 
 
 def draw_token_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax=None,
-                       max_tokens=80):
+                       max_tokens=60):
     """Draw tokens as colored boxes on a matplotlib axis."""
     tokens = tokens[:max_tokens]
     values = values[:max_tokens]
@@ -82,7 +82,7 @@ def draw_token_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax
     colormap = plt.cm.get_cmap(cmap)
 
     x, y = 0.02, 0.85
-    line_height = 0.18
+    line_height = 0.16
     max_x = 0.98
 
     for i, (tok, val) in enumerate(zip(tokens, values)):
@@ -91,7 +91,7 @@ def draw_token_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax
         if len(display) > 12:
             display = display[:10] + '..'
 
-        text_width = len(display) * 0.012 + 0.015
+        text_width = len(display) * 0.015 + 0.018
 
         if x + text_width > max_x:
             x = 0.02
@@ -105,9 +105,9 @@ def draw_token_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax
                                linewidth=0.5, transform=ax.transAxes)
         ax.add_patch(rect)
         text_color = 'white' if sum(color[:3]) < 1.5 else 'black'
-        ax.text(x + text_width / 2, y, display, fontsize=6, fontfamily='monospace',
+        ax.text(x + text_width / 2, y, display, fontsize=9, fontfamily='monospace',
                 ha='center', va='center', transform=ax.transAxes, color=text_color)
-        x += text_width + 0.005
+        x += text_width + 0.006
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -120,12 +120,12 @@ def plot_token_heatmaps(model, tokenizer, device):
     from data_splits import get_splits
     _, test_df = get_splits()
 
-    # Pick diverse cases
-    human_samples = test_df[test_df['label'] == 0].sample(3, random_state=42)
-    ai_samples = test_df[test_df['label'] == 1].sample(3, random_state=42)
+    # Pick 1 human + 1 AI for clearer display
+    human_samples = test_df[test_df['label'] == 0].sample(1, random_state=42)
+    ai_samples = test_df[test_df['label'] == 1].sample(1, random_state=42)
     samples = pd.concat([human_samples, ai_samples]).reset_index(drop=True)
 
-    fig, axes = plt.subplots(6, 2, figsize=(22, 24))
+    fig, axes = plt.subplots(2, 2, figsize=(22, 12))
 
     for i, (_, row) in enumerate(samples.iterrows()):
         text = row['text'][:1500]  # limit length

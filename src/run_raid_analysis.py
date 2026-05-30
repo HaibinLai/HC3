@@ -541,14 +541,12 @@ def plot_token_heatmap(test_df):
 
     model, tokenizer, device = load_model()
 
-    # Select 3 human + 3 AI samples with diverse domains
+    # Select 1 human + 1 AI for clearer display with larger text
     humans = test_df[test_df['label'] == 0]
     ais = test_df[test_df['label'] == 1]
 
-    h_samples = humans.groupby('domain').first().head(3) if 'domain' in humans.columns \
-        else humans.sample(3, random_state=42)
-    a_samples = ais.groupby('domain').first().head(3) if 'domain' in ais.columns \
-        else ais.sample(3, random_state=42)
+    h_samples = humans.sample(1, random_state=42)
+    a_samples = ais.sample(1, random_state=42)
 
     samples = []
     for _, row in h_samples.iterrows():
@@ -559,7 +557,7 @@ def plot_token_heatmap(test_df):
         m = row.get('model', '?')
         samples.append((row['generation'], f'AI: {m} ({domain})', 1))
 
-    fig, axes = plt.subplots(len(samples), 2, figsize=(22, 4 * len(samples)))
+    fig, axes = plt.subplots(len(samples), 2, figsize=(22, 10))
 
     for i, (text, title, label) in enumerate(samples):
         try:
@@ -608,7 +606,7 @@ def _get_token_details(text, model, tokenizer, device, max_length=512):
     return tokens, token_lp, entropy, ranks
 
 
-def _draw_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax=None, max_tokens=80):
+def _draw_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax=None, max_tokens=60):
     """Draw colored token boxes."""
     tokens = tokens[:max_tokens]
     values = values[:max_tokens]
@@ -622,7 +620,7 @@ def _draw_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax=None
     colormap = plt.cm.get_cmap(cmap)
 
     x, y = 0.02, 0.85
-    line_height = 0.18
+    line_height = 0.16
     max_x = 0.98
 
     for tok, val in zip(tokens, values):
@@ -630,7 +628,7 @@ def _draw_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax=None
         display = tok.replace('\n', '\\n')
         if len(display) > 12:
             display = display[:10] + '..'
-        text_width = len(display) * 0.012 + 0.015
+        text_width = len(display) * 0.015 + 0.018
         if x + text_width > max_x:
             x = 0.02
             y -= line_height
@@ -646,7 +644,7 @@ def _draw_heatmap(ax, tokens, values, title, cmap='RdYlGn', vmin=None, vmax=None
                              edgecolor='gray', linewidth=0.3)
         ax.add_patch(box)
         ax.text(x + text_width / 2 - 0.002, y, display,
-                fontsize=7, ha='center', va='center', color=txt_color,
+                fontsize=9, ha='center', va='center', color=txt_color,
                 fontfamily='monospace')
         x += text_width
 
