@@ -82,19 +82,20 @@ def plot_single_feature_auc(stats_df):
 
 
 def plot_single_feature_dist(X_test, y_test, stats_df):
-    """KDE distributions for top-12 features."""
-    top12 = stats_df.head(12)['feature'].values
-    fig, axes = plt.subplots(3, 4, figsize=(16, 10))
-    for idx, (feat, ax) in enumerate(zip(top12, axes.flat)):
+    """KDE distributions for top-6 Model-Free features."""
+    mf_df = stats_df[~stats_df['feature'].str.startswith(('emb_pca_', 'gpt2_'))].reset_index(drop=True)
+    top6 = mf_df.head(6)['feature'].values
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+    for idx, (feat, ax) in enumerate(zip(top6, axes.flat)):
         h_vals = X_test[feat].values[y_test == 0]
         a_vals = X_test[feat].values[y_test == 1]
         ax.hist(h_vals, bins=50, density=True, alpha=0.5, color='#2196F3', label='Human')
         ax.hist(a_vals, bins=50, density=True, alpha=0.5, color='#F44336', label='AI')
-        ax.set_title(feat, fontsize=10)
+        ax.set_title(feat, fontsize=12, fontweight='bold')
         ax.set_ylabel('')
         if idx == 0:
-            ax.legend(fontsize=8)
-    plt.suptitle('RAID: Top-12 Features — Human vs AI Distribution', fontsize=14, y=1.01)
+            ax.legend(fontsize=9)
+    plt.suptitle('RAID: Top Model-Free Features — Human vs AI Distribution', fontsize=14, y=1.01)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_single_feature_dist.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -102,20 +103,21 @@ def plot_single_feature_dist(X_test, y_test, stats_df):
 
 
 def plot_single_feature_boxplot(X_test, y_test, stats_df):
-    """Boxplots for top-12 features."""
-    top12 = stats_df.head(12)['feature'].values
-    fig, axes = plt.subplots(3, 4, figsize=(16, 10))
-    for idx, (feat, ax) in enumerate(zip(top12, axes.flat)):
+    """Boxplots for top-6 Model-Free features."""
+    mf_df = stats_df[~stats_df['feature'].str.startswith(('emb_pca_', 'gpt2_'))].reset_index(drop=True)
+    top6 = mf_df.head(6)['feature'].values
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+    for idx, (feat, ax) in enumerate(zip(top6, axes.flat)):
         plot_data = pd.DataFrame({
             'value': X_test[feat].values,
             'label': ['Human' if y == 0 else 'AI' for y in y_test]
         })
         sns.boxplot(data=plot_data, x='label', y='value', ax=ax,
                     palette={'Human': '#2196F3', 'AI': '#F44336'}, showfliers=False)
-        ax.set_title(feat, fontsize=10)
+        ax.set_title(feat, fontsize=12, fontweight='bold')
         ax.set_xlabel('')
         ax.set_ylabel('')
-    plt.suptitle('RAID: Top-12 Features — Human vs AI Boxplot', fontsize=14, y=1.01)
+    plt.suptitle('RAID: Top Model-Free Features — Human vs AI Boxplot', fontsize=14, y=1.01)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_single_feature_boxplot.png', dpi=150, bbox_inches='tight')
     plt.close()
