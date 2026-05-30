@@ -61,15 +61,17 @@ def compute_single_feature_stats(X_test, y_test):
 
 
 def plot_single_feature_auc(stats_df):
-    """Bar chart of top-10 single-feature AUCs."""
-    top = stats_df.head(10)
+    """Bar chart of top-10 single-feature AUCs (Model-Free only, 36d)."""
+    # Filter out Model-Based features (emb_pca_*, gpt2_perplexity, gpt2_log_perplexity)
+    mf_df = stats_df[~stats_df['feature'].str.startswith(('emb_pca_', 'gpt2_'))].reset_index(drop=True)
+    top = mf_df.head(10)
     fig, ax = plt.subplots(figsize=(10, 6))
     colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(top)))
     ax.barh(range(len(top)-1, -1, -1), top['auc'].values, color=colors)
     ax.set_yticks(range(len(top)-1, -1, -1))
     ax.set_yticklabels(top['feature'].values, fontsize=11)
     ax.set_xlabel('ROC AUC (single feature)')
-    ax.set_title('RAID: Single Feature AUC Ranking (Top 10)')
+    ax.set_title('RAID: Model-Free Feature AUC Ranking (Top 10, 36d)')
     ax.set_xlim(0.5, 1.0)
     for i, v in enumerate(top['auc'].values):
         ax.text(v + 0.003, len(top)-1-i, f'{v:.4f}', va='center', fontsize=10)
@@ -217,8 +219,34 @@ def main():
     print("\n[6/6] Feature importance vs AUC scatter...")
     plot_importance_vs_auc(X_train, y_train, stats_df)
 
+    # Token features Top 10
+    print("\n[Bonus] Token feature single-feature AUC...")
+    from run_raid_analysis import load_token_features
+    tok_tr, tok_te = load_token_features()
+    n_te = min(len(tok_te), len(y_test))
+    tok_stats = compute_single_feature_stats(tok_te.iloc[:n_te], y_test[:n_te])
+    print(f"  Top-10 token features by AUC:")
+    for _, row in tok_stats.head(10).iterrows():
+        print(f"    {row['feature']:30s} AUC={row['auc']:.4f}")
+
+    top = tok_stats.head(10)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    colors = plt.cm.Reds(np.linspace(0.4, 0.9, len(top)))
+    ax.barh(range(len(top)-1, -1, -1), top['auc'].values, color=colors)
+    ax.set_yticks(range(len(top)-1, -1, -1))
+    ax.set_yticklabels(top['feature'].values, fontsize=11)
+    ax.set_xlabel('ROC AUC (single feature)')
+    ax.set_title('RAID: Token Feature AUC Ranking (Top 10)')
+    ax.set_xlim(0.5, 1.0)
+    for i, v in enumerate(top['auc'].values):
+        ax.text(v + 0.003, len(top)-1-i, f'{v:.4f}', va='center', fontsize=10)
+    plt.tight_layout()
+    plt.savefig(FIG_DIR / 'raid_token_feature_auc.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    print("  Saved: raid_token_feature_auc.png")
+
     print("\n" + "=" * 60)
-    print("Done! Generated 5 figures + 1 CSV.")
+    print("Done! Generated 6 figures + 1 CSV.")
     print("=" * 60)
 
 

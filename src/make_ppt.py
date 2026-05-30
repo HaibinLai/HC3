@@ -428,10 +428,13 @@ set_slide_bg(slide)
 add_text_box(slide, 0.8, 0.4, 10, 0.8, "单特征判别力分析", 36, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 4)
 add_image_safe(slide, FIG / "raid_single_feature_auc.png", 0.3, 1.3, width=6.5)
-add_image_safe(slide, FIG / "raid_single_feature_dist.png", 6.8, 1.3, width=6.2)
+add_image_safe(slide, FIG / "raid_token_feature_auc.png", 6.8, 1.3, width=6.2)
 
-add_text_box(slide, 0.8, 6.6, 11, 0.5,
-    "words_per_paragraph (AUC 0.89) 是最强单特征 — AI 倾向于生成规则的段落结构",
+add_text_box(slide, 0.3, 5.8, 6.5, 0.4, "Model-Free (36d): 段落结构最强", 14, ACCENT3, alignment=PP_ALIGN.CENTER)
+add_text_box(slide, 6.8, 5.8, 6.2, 0.4, "Token (30d): 概率分布特征普遍 >0.77", 14, ACCENT2, alignment=PP_ALIGN.CENTER)
+
+add_text_box(slide, 0.8, 6.4, 11, 0.5,
+    "Model-Free 最强特征 AUC=0.89 (段落结构), Token 最强 AUC=0.85 (概率波动) — 两类视角互补",
     15, ACCENT, alignment=PP_ALIGN.CENTER)
 
 # ========== Slide 7: Feature Ablation ==========
