@@ -36,17 +36,31 @@ plt.rcParams.update({'font.size': 11, 'figure.dpi': 150})
 
 
 def load_combined():
-    """Load 88 handcrafted + 30 token features, merge, return aligned data."""
+    """Load 88 handcrafted + 12 NLP + 30 token features, merge, return aligned data."""
     train_df, test_df, X_tr_90, X_te_90 = load_features_and_split()
     tok_tr, tok_te = load_token_features()
 
-    n_tr = min(len(X_tr_90), len(tok_tr), len(train_df))
-    n_te = min(len(X_te_90), len(tok_te), len(test_df))
-
-    X_tr = pd.concat([X_tr_90.iloc[:n_tr].reset_index(drop=True),
-                       tok_tr.iloc[:n_tr].reset_index(drop=True)], axis=1)
-    X_te = pd.concat([X_te_90.iloc[:n_te].reset_index(drop=True),
-                       tok_te.iloc[:n_te].reset_index(drop=True)], axis=1)
+    # Load NLP features if available
+    nlp_tr_path = DATA_DIR / 'raid_nlp_features_train.csv'
+    nlp_te_path = DATA_DIR / 'raid_nlp_features_test.csv'
+    if nlp_tr_path.exists() and nlp_te_path.exists():
+        nlp_tr = pd.read_csv(nlp_tr_path).replace([np.inf, -np.inf], np.nan).fillna(0)
+        nlp_te = pd.read_csv(nlp_te_path).replace([np.inf, -np.inf], np.nan).fillna(0)
+        n_tr = min(len(X_tr_90), len(tok_tr), len(nlp_tr), len(train_df))
+        n_te = min(len(X_te_90), len(tok_te), len(nlp_te), len(test_df))
+        X_tr = pd.concat([X_tr_90.iloc[:n_tr].reset_index(drop=True),
+                           nlp_tr.iloc[:n_tr].reset_index(drop=True),
+                           tok_tr.iloc[:n_tr].reset_index(drop=True)], axis=1)
+        X_te = pd.concat([X_te_90.iloc[:n_te].reset_index(drop=True),
+                           nlp_te.iloc[:n_te].reset_index(drop=True),
+                           tok_te.iloc[:n_te].reset_index(drop=True)], axis=1)
+    else:
+        n_tr = min(len(X_tr_90), len(tok_tr), len(train_df))
+        n_te = min(len(X_te_90), len(tok_te), len(test_df))
+        X_tr = pd.concat([X_tr_90.iloc[:n_tr].reset_index(drop=True),
+                           tok_tr.iloc[:n_tr].reset_index(drop=True)], axis=1)
+        X_te = pd.concat([X_te_90.iloc[:n_te].reset_index(drop=True),
+                           tok_te.iloc[:n_te].reset_index(drop=True)], axis=1)
 
     train_df = train_df.iloc[:n_tr].reset_index(drop=True)
     test_df = test_df.iloc[:n_te].reset_index(drop=True)
