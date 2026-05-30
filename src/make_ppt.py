@@ -100,19 +100,59 @@ slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
 add_text_box(slide, 0.8, 0.4, 10, 0.8, "问题定义", 36, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 4)
-add_bullet_list(slide, 0.8, 1.5, 5.5, 5, [
-    "核心任务：区分人类文本 vs AI 生成文本 (二分类)",
-    "",
-    "挑战 1: 多模型 — 11+ 种 AI 生成器，特征各异",
-    "挑战 2: 多领域 — 新闻、诗歌、学术摘要等差异大",
-    "挑战 3: 对抗攻击 — 释义、同义词替换等规避手段",
-    "挑战 4: 可解释性 — 不能只给判定，要说明为什么",
-    "",
-    "我们的目标：",
-    "  用可解释的统计特征 + 轻量机器学习",
-    "  替代不可解释的深度学习黑盒",
-], font_size=18)
-add_image_safe(slide, FIG / "class_distribution.png", 7.5, 1.5, width=5)
+
+add_text_box(slide, 0.8, 1.3, 6, 0.5, "核心任务：区分人类文本 vs AI 生成文本 (二分类)", 20, WHITE, bold=True)
+
+# 四个挑战用卡片式布局
+challenges = [
+    ("多模型", "11+ 种生成器\nGPT-2 → GPT-4", ACCENT2),
+    ("多领域", "新闻/诗歌/摘要\n领域差异大", ACCENT),
+    ("对抗攻击", "释义/同义词替换\n11 种规避手段", RGBColor(0xFF, 0xA5, 0x00)),
+    ("可解释性", "不只要判定\n要说明为什么", ACCENT3),
+]
+for i, (title, desc, clr) in enumerate(challenges):
+    x = 0.8 + i * 1.55
+    # Card background
+    shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+        Inches(x), Inches(2.0), Inches(1.4), Inches(1.6))
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = RGBColor(0x20, 0x28, 0x48)
+    shape.line.color.rgb = clr
+    shape.line.width = Pt(2)
+    add_text_box(slide, x + 0.1, 2.05, 1.2, 0.4, title, 14, clr, bold=True, alignment=PP_ALIGN.CENTER)
+    add_text_box(slide, x + 0.1, 2.45, 1.2, 1.0, desc, 11, LIGHT, alignment=PP_ALIGN.CENTER)
+
+# 我们的方法 vs 现有方法对比
+add_text_box(slide, 0.8, 3.9, 6, 0.5, "现有方法 vs 我们的方法", 18, ACCENT, bold=True)
+
+vs_header = [("", 0.8, 2), ("深度学习黑盒", 2.8, 2), ("零样本方法", 4.8, 2)]
+for name, x, w in vs_header:
+    add_text_box(slide, x, 4.4, w, 0.3, name, 13, GRAY, bold=True)
+add_text_box(slide, 0.8, 4.4, 2, 0.3, "", 13, GRAY)
+
+vs_rows = [
+    ("可解释性", "黑盒", "部分", "完全可解释"),
+    ("AUC", "~0.98", "0.78", "0.999"),
+    ("速度", "慢 (GPU)", "慢 (GPU)", "快 (CPU)"),
+    ("泛化性", "需重训练", "不稳定", "特征组合灵活"),
+]
+add_text_box(slide, 6.8, 4.4, 2, 0.3, "我们 (XGBoost)", 13, ACCENT3, bold=True)
+for i, (dim, v1, v2, v3) in enumerate(vs_rows):
+    y = 4.8 + i * 0.45
+    add_text_box(slide, 0.8, y, 2, 0.3, dim, 12, WHITE, bold=True)
+    add_text_box(slide, 2.8, y, 2, 0.3, v1, 12, ACCENT2)
+    add_text_box(slide, 4.8, y, 2, 0.3, v2, 12, ACCENT2)
+    add_text_box(slide, 6.8, y, 2, 0.3, v3, 12, ACCENT3)
+
+# Right side: RAID model×domain heatmap
+add_image_safe(slide, FIG / "raid_model_domain_heatmap.png", 7.5, 1.3, width=5.5, height=3)
+
+add_text_box(slide, 7.5, 4.4, 5.5, 0.4, "RAID: 11 生成器 × 8 领域", 14, ACCENT, bold=True, alignment=PP_ALIGN.CENTER)
+add_text_box(slide, 7.5, 4.8, 5.5, 0.4, "从 GPT-2 到 GPT-4, 覆盖全代际", 12, GRAY, alignment=PP_ALIGN.CENTER)
+
+add_text_box(slide, 0.8, 6.6, 12, 0.5,
+    "我们的目标：用 118 维可解释特征 + XGBoost, 在 RAID 上超越零样本方法, 并揭示特征的\"有效期\"规律",
+    16, ACCENT, alignment=PP_ALIGN.CENTER)
 
 # ========== Slide 3: Datasets ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -175,17 +215,38 @@ add_bullet_list(slide, 7, 2.3, 5.8, 3, [
     "  检测同代 AI 的\"选词指纹\"",
 ], font_size=13, color=LIGHT)
 
-# Bottom: pipeline arrow
-add_text_box(slide, 0.5, 5.3, 12, 0.5,
-    "Model-Free (36维)  +  Model-Based (82维)  =  118维 (去重后)",
-    18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
-add_text_box(slide, 2, 5.8, 9, 0.6,
-    "→  XGBoost (500 trees, depth 8)  →  SHAP 可解释分析",
-    18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+# Bottom: 项目实施思路 (两步)
+add_text_box(slide, 0.5, 5.0, 12, 0.4,
+    "Model-Free (36维)  +  Model-Based (82维)  =  118维 → XGBoost → SHAP",
+    17, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
 
-add_text_box(slide, 0.8, 6.5, 11, 0.5,
-    "核心理念：Model-Free 看文本的外表, Model-Based 的三个参考模型各自捕捉不同时代 AI 的内在",
-    16, ACCENT, alignment=PP_ALIGN.CENTER)
+# Step 1: 特征工程
+shape1 = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+    Inches(0.5), Inches(5.5), Inches(6), Inches(1.5))
+shape1.fill.solid()
+shape1.fill.fore_color.rgb = RGBColor(0x20, 0x28, 0x48)
+shape1.line.color.rgb = ACCENT2
+shape1.line.width = Pt(1.5)
+add_text_box(slide, 0.7, 5.5, 5.6, 0.35, "Step 1: 多维度特征工程", 14, ACCENT2, bold=True)
+add_bullet_list(slide, 0.7, 5.85, 5.6, 1.1, [
+    "词汇丰富度: TTR, Hapax ratio, Yule's K (AI 用词重复)",
+    "可读性评分: Flesch-Kincaid, Gunning Fog (AI 偏好中等难度)",
+    "行文模式: 段落结构规则性、句长波动 (AI 缺乏节奏变化)",
+], font_size=10, color=LIGHT)
+
+# Step 2: 模型构建
+shape2 = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+    Inches(6.8), Inches(5.5), Inches(6), Inches(1.5))
+shape2.fill.solid()
+shape2.fill.fore_color.rgb = RGBColor(0x20, 0x28, 0x48)
+shape2.line.color.rgb = ACCENT3
+shape2.line.width = Pt(1.5)
+add_text_box(slide, 7.0, 5.5, 5.6, 0.35, "Step 2: 模型构建与特征筛选", 14, ACCENT3, bold=True)
+add_bullet_list(slide, 7.0, 5.85, 5.6, 1.1, [
+    "XGBoost / Random Forest / LR 对比, 选最优分类器",
+    "相关性分析 + 消融实验剔除冗余特征",
+    "SHAP 归因分析验证每个特征的贡献与可解释性",
+], font_size=10, color=LIGHT)
 
 # ========== Slide 4b: Lexical Richness & Readability Deep Dive ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
