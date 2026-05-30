@@ -408,19 +408,19 @@ add_image_safe(slide, FIG / "raid_final_comparison.png", 0.5, 1.5, width=6.5)
 # Results text
 add_text_box(slide, 7.5, 1.5, 5, 0.6, "关键数字", 24, ACCENT, bold=True)
 results_items = [
-    "XGBoost (120 组合):  AUC 0.9992",
-    "XGBoost (90 手工):   AUC 0.9951",
-    "XGBoost (30 Token):  AUC 0.9900",
-    "Random Forest (90):  AUC 0.9923",
-    "LR (90):             AUC 0.9653",
-    "Fast-DetectGPT:      AUC 0.7815",
+    "XGBoost (118 组合):  AUC 0.9992",
+    "XGBoost (88 手工):    AUC 0.9951",
+    "XGBoost (30 Token):   AUC 0.9900",
+    "Random Forest (88):   AUC 0.9923",
+    "LR (88):                   AUC 0.9653",
+    "Fast-DetectGPT:         AUC 0.7815",
     "",
-    "120 组合 vs 90 手工:",
+    "118 组合 vs 88 手工:",
     "  AUC +0.0041, Acc 99.15%",
     "",
     "完全可解释 + 超越零样本方法",
 ]
-add_bullet_list(slide, 7.5, 2.3, 5, 4.5, results_items, font_size=16, color=LIGHT)
+add_bullet_list(slide, 7.5, 2.3, 5.5, 4.5, results_items, font_size=15, color=LIGHT)
 
 # ========== Slide 6: Single Feature AUC ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -457,7 +457,7 @@ add_bullet_list(slide, 7.2, 2.2, 5.5, 4, [
 # ========== Slide 8: SHAP ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
-add_text_box(slide, 0.8, 0.4, 10, 0.8, "SHAP 可解释性分析 (120 维)", 36, ACCENT, bold=True)
+add_text_box(slide, 0.8, 0.4, 10, 0.8, "SHAP 可解释性分析 (118 维)", 36, ACCENT, bold=True)
 add_accent_line(slide, 0.8, 1.1, 4)
 add_image_safe(slide, FIG / "raid_120_shap_summary.png", 0.3, 1.3, width=6)
 add_image_safe(slide, FIG / "raid_shap_dependence.png", 6.5, 1.3, width=6.5)
@@ -548,7 +548,7 @@ add_accent_line(slide, 0.8, 1.1, 4)
 add_image_safe(slide, FIG / "raid_generator_radar.png", 0.2, 1.3, width=6.5)
 add_image_safe(slide, FIG / "raid_120_per_generator.png", 6.8, 1.3, width=6.2)
 add_text_box(slide, 0.8, 6.6, 11, 0.5,
-    "不同生成器有不同的\"特征指纹\" — 120 维在 Cohere/ChatGPT 上提升最大",
+    "不同生成器有不同的\"特征指纹\" — 118 维在 Cohere/ChatGPT 上提升最大",
     15, ACCENT, alignment=PP_ALIGN.CENTER)
 
 # ========== Slide 13: Adversarial ==========
@@ -579,7 +579,7 @@ add_accent_line(slide, 0.8, 1.1, 8)
 
 # Full table
 header_items = [("Dataset", 0.8, 2.5), ("90-feat", 3.5, 1.5), ("30-tok", 5.2, 1.5),
-                ("120-mix", 6.9, 1.5), ("Delta", 8.6, 1.5), ("解读", 10.3, 2.5)]
+                ("118-mix", 6.9, 1.5), ("Delta", 8.6, 1.5), ("解读", 10.3, 2.5)]
 for name, x, w in header_items:
     add_text_box(slide, x, 1.4, w, 0.5, name, 16, ACCENT, bold=True)
 
@@ -600,7 +600,7 @@ for i, (ds, a90, a30, a120, delta, note, clr) in enumerate(rows):
     add_text_box(slide, 10.3, y, 2.5, 0.5, note, 12, GRAY)
 
 add_text_box(slide, 0.8, 6.0, 12, 0.8,
-    "核心规律: 120 组合只在两侧特征都有信号时互补增强 (RAID)\n"
+    "核心规律: 118 组合只在两侧特征都有信号时互补增强 (RAID)\n"
     "当一侧是纯噪声时，噪声特征越多稀释越严重 (SemEval: 88噪声 vs 30有效 → AUC -0.13)",
     15, ACCENT, alignment=PP_ALIGN.CENTER)
 
@@ -624,7 +624,7 @@ add_bullet_list(slide, 0.8, 2.0, 5.5, 2.5, [
 
 add_text_box(slide, 7, 1.4, 5.5, 0.6, "XGBoost 的过拟合机制", 20, WHITE, bold=True)
 add_bullet_list(slide, 7, 2.0, 5.5, 2.5, [
-    "120 维模型中 42.7% importance → 噪声特征",
+    "118 维模型中 42.7% importance → 噪声特征",
     "  punct_semicolon_rate: imp=0.079 (纯噪声!)",
     "",
     "噪声特征在训练集上碰巧与标签相关",
@@ -800,7 +800,7 @@ add_bullet_list(slide, 7, 2.2, 5.5, 3, [
 
 add_text_box(slide, 0.8, 5.5, 11.5, 1.2,
     "\"手工特征看文本的外表，Token 概率特征看文本在 AI 眼中的内在。\n"
-    "当一个视角被欺骗时，另一个视角往往能看穿。这就是 120 维组合的力量。\"",
+    "当一个视角被欺骗时，另一个视角往往能看穿。这就是 118 维组合的力量。\"",
     20, ACCENT, alignment=PP_ALIGN.CENTER)
 
 # ========== Slide 18: Thank You ==========
