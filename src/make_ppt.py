@@ -578,7 +578,7 @@ add_text_box(slide, 0.8, 0.4, 10, 0.8, "跨数据集验证 (5 数据集完整结
 add_accent_line(slide, 0.8, 1.1, 8)
 
 # Full table
-header_items = [("Dataset", 0.8, 2.5), ("90-feat", 3.5, 1.5), ("30-tok", 5.2, 1.5),
+header_items = [("Dataset", 0.8, 2.5), ("88-feat", 3.5, 1.5), ("30-tok", 5.2, 1.5),
                 ("118-mix", 6.9, 1.5), ("Delta", 8.6, 1.5), ("解读", 10.3, 2.5)]
 for name, x, w in header_items:
     add_text_box(slide, x, 1.4, w, 0.5, name, 16, ACCENT, bold=True)
