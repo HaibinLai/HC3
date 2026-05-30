@@ -682,7 +682,7 @@ set_slide_bg(slide)
 add_text_box(slide, 0.8, 0.4, 12, 0.8, "SemEval: 噪声特征稀释现象剖析", 32, ACCENT2, bold=True)
 add_accent_line(slide, 0.8, 1.1, 8)
 
-add_text_box(slide, 0.8, 1.4, 5.5, 0.6, "为什么 90-feat 在 SemEval 上失效?", 20, WHITE, bold=True)
+add_text_box(slide, 0.8, 1.4, 5.5, 0.6, "为什么 88-feat 在 SemEval 上失效?", 20, WHITE, bold=True)
 add_bullet_list(slide, 0.8, 2.0, 5.5, 2.5, [
     "88 个特征中 没有一个 AUC > 0.55",
     "最好的 emb_pca_39 也只有 AUC = 0.5159",
@@ -707,11 +707,11 @@ add_bullet_list(slide, 7, 2.0, 5.5, 2.5, [
 ], font_size=15, color=LIGHT)
 
 # Bottom: progressive degradation
-add_text_box(slide, 0.8, 5.0, 12, 0.5, "逐步加入 90-feat 的效果 (越多噪声越差):", 18, ACCENT, bold=True)
+add_text_box(slide, 0.8, 5.0, 12, 0.5, "逐步加入 88-feat 的效果 (越多噪声越差):", 18, ACCENT, bold=True)
 steps = [
     ("30 tok alone", "0.9766", ACCENT3),
-    ("+ top5 90-feat (35维)", "0.9719", ACCENT3),
-    ("+ top10 90-feat (40维)", "0.9436", RGBColor(0xFF, 0xC1, 0x07)),
+    ("+ top5 88-feat (35维)", "0.9719", ACCENT3),
+    ("+ top10 88-feat (40维)", "0.9436", RGBColor(0xFF, 0xC1, 0x07)),
     ("+ all 88 feat (118维)", "0.8443", ACCENT2),
 ]
 for i, (label, auc, clr) in enumerate(steps):
