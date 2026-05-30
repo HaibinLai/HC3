@@ -180,7 +180,7 @@ add_text_box(slide, 0.5, 5.3, 12, 0.5,
     "Model-Free (36维)  +  Model-Based (82维)  =  118维 (去重后)",
     18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
 add_text_box(slide, 2, 5.8, 9, 0.6,
-    "→  Auto-Filter (丢噪声组)  →  XGBoost (500 trees, depth 8)  →  SHAP 可解释分析",
+    "→  XGBoost (500 trees, depth 8)  →  SHAP 可解释分析",
     18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
 
 add_text_box(slide, 0.8, 6.5, 11, 0.5,
@@ -587,57 +587,47 @@ for i, (label, auc, clr) in enumerate(steps):
     add_text_box(slide, x, 5.9, 2.8, 0.5, f"AUC = {auc}", 20, clr, bold=True)
 
 add_text_box(slide, 0.8, 6.6, 12, 0.5,
-    "启示: 生产系统需要特征选择/门控 — 先评估各特征组信号强度，动态决定使用哪些特征",
+    "启示: Model-Free 特征的\"有效期\"已过 — 新 AI 在统计上逼近人类, 需要同代参考模型的 token 特征来检测",
     15, ACCENT, alignment=PP_ALIGN.CENTER)
 
-# ========== Slide 14c: Auto-Filter Solution ==========
+# ========== Slide 14c: Shelf Life Summary ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide)
-add_text_box(slide, 0.8, 0.4, 12, 0.8, "解决方案: Auto-Filter 噪声特征自动过滤", 32, ACCENT3, bold=True)
+add_text_box(slide, 0.8, 0.4, 12, 0.8, "特征\"有效期\"总结：按目标选参考模型", 32, ACCENT3, bold=True)
 add_accent_line(slide, 0.8, 1.1, 8)
 
-add_text_box(slide, 0.8, 1.4, 5.5, 0.6, "机制: 组级信号强度检测", 20, WHITE, bold=True)
-add_bullet_list(slide, 0.8, 2.0, 5.5, 2.5, [
-    "对每组特征计算平均单特征 AUC",
-    "  avg_AUC = mean(max(AUC_i, 1-AUC_i))",
-    "丢弃 avg AUC < 0.52 的组 (近随机)",
-    "余下特征 + 30 token → 组合训练",
-    "",
-    "只用训练集评估 → 不泄露测试信息",
-    "O(n·p) 开销 → 几秒完成",
-], font_size=15, color=LIGHT)
+# Left: shelf life table
+add_text_box(slide, 0.8, 1.4, 6, 0.6, "各特征层的有效范围", 20, WHITE, bold=True)
 
-add_text_box(slide, 7, 1.4, 5.5, 0.6, "跨数据集 Auto-Filter 结果", 20, WHITE, bold=True)
+shelf_header = [("特征层", 0.8, 2.5), ("有效目标", 3.5, 3), ("失效目标", 6.8, 3)]
+for name, x, w in shelf_header:
+    add_text_box(slide, x, 2.0, w, 0.4, name, 16, ACCENT, bold=True)
 
-# Table
-af_header = [("Dataset", 7.0, 2.2), ("Before", 9.3, 1.3), ("After", 10.7, 1.3)]
-for name, x, w in af_header:
-    add_text_box(slide, x, 2.0, w, 0.4, name, 15, ACCENT, bold=True)
-
-af_rows = [
-    ("RAID", "0.9991", "0.9992", "drop 2组 (structure,perplexity)", LIGHT),
-    ("HC3", "0.9995", "0.9996", "drop 0组", LIGHT),
-    ("SemEval", "0.8468", "0.8371", "drop 1组 (perplexity)", ACCENT2),
-    ("TuringBench", "0.9853", "0.9812", "drop 3组 (readability,struct,emb)", ACCENT2),
-    ("Pile", "0.9727", "0.9727", "drop 0组", LIGHT),
+shelf_rows = [
+    ("Model-Free (36d)", "老 AI (RAID=0.994)", "新 AI (SemEval=0.52)", LIGHT),
+    ("BERT-emb (50d)", "HC3=0.88, Pile=0.90", "SemEval=0.50, TB=0.54", LIGHT),
+    ("GPT2-ppl (2d)", "GPT系: HC3=0.99, TB=0.97", "非GPT: RAID=0.49", ACCENT2),
+    ("Mistral-token (30d)", "同代: RAID=0.99, SE=0.98", "老AI: HC3=0.50, TB=0.52", ACCENT3),
 ]
-for i, (ds, before, after, note, clr) in enumerate(af_rows):
-    y = 2.6 + i * 0.65
-    add_text_box(slide, 7.0, y, 2.2, 0.4, ds, 14, clr)
-    add_text_box(slide, 9.3, y, 1.3, 0.4, before, 14, WHITE)
-    add_text_box(slide, 10.7, y, 1.3, 0.4, after, 14, ACCENT3 if after != before else WHITE)
+for i, (feat, good, bad, clr) in enumerate(shelf_rows):
+    y = 2.6 + i * 0.75
+    add_text_box(slide, 0.8, y, 2.5, 0.5, feat, 14, clr, bold=True)
+    add_text_box(slide, 3.5, y, 3, 0.5, good, 13, ACCENT3)
+    add_text_box(slide, 6.8, y, 3, 0.5, bad, 13, ACCENT2)
 
-add_text_box(slide, 7, 4.8, 5.5, 0.4, note if False else "", 12, GRAY)
+# Right: deployment strategy
+add_text_box(slide, 0.8, 5.3, 12, 0.6, "部署策略：先判断目标 AI 的时代，再选合适的特征层", 18, WHITE, bold=True, alignment=PP_ALIGN.CENTER)
 
-# Notes for each row
-for i, (_, _, _, note, _) in enumerate(af_rows):
-    y = 2.6 + i * 0.65
-    add_text_box(slide, 7.0, y + 0.3, 5.5, 0.3, note, 11, GRAY)
-
-add_text_box(slide, 0.8, 5.5, 12, 0.8,
-    "Auto-Filter 以组级 AUC < 0.52 为门槛自动丢弃噪声特征组\n"
-    "关键发现: SemEval 上 model+token (0.9610) 远优于 all (0.8468) → 纯统计特征是噪声源",
-    16, ACCENT, alignment=PP_ALIGN.CENTER)
+strategies = [
+    ("检测 GPT 系 (ChatGPT)", "Model-Free + GPT2-ppl", "HC3: AUC 1.000"),
+    ("检测同代新 AI (GPT-4/Claude)", "Model-Free + Mistral-token", "RAID: AUC 0.999"),
+    ("未知目标 / 混合场景", "全部 118 维 + 组级信号检测", "按需丢弃噪声组"),
+]
+for i, (scenario, recipe, result) in enumerate(strategies):
+    x = 0.8 + i * 4.1
+    add_text_box(slide, x, 5.8, 3.8, 0.3, scenario, 13, ACCENT, bold=True)
+    add_text_box(slide, x, 6.1, 3.8, 0.3, recipe, 12, LIGHT)
+    add_text_box(slide, x, 6.4, 3.8, 0.3, result, 12, ACCENT3)
 
 # ========== Slide 14d: Three-Layer Ablation Heatmap ==========
 slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -718,7 +708,8 @@ conclusions = [
     "4. 盲目合并会更差 (噪声稀释)",
     "    SemEval: model-based=0.961 > all=0.847",
     "",
-    "5. Auto-Filter 自动检测并丢弃噪声特征组",
+    "5. 部署策略: 按目标 AI 时代选择合适的参考模型",
+    "    没有\"万能特征\", 观察者模型需定期更新",
 ]
 add_bullet_list(slide, 0.8, 1.5, 11, 5.5, conclusions, font_size=18, color=LIGHT, spacing=0.8)
 
