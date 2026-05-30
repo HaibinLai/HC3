@@ -103,7 +103,7 @@ def plot_single_feature_dist(X_test, y_test, stats_df):
 
 
 def plot_single_feature_boxplot(X_test, y_test, stats_df):
-    """Boxplots for top-6 Model-Free features."""
+    """Violin plots for top-6 Model-Free features."""
     mf_df = stats_df[~stats_df['feature'].str.startswith(('emb_pca_', 'gpt2_'))].reset_index(drop=True)
     top6 = mf_df.head(6)['feature'].values
     fig, axes = plt.subplots(2, 3, figsize=(15, 8))
@@ -112,12 +112,12 @@ def plot_single_feature_boxplot(X_test, y_test, stats_df):
             'value': X_test[feat].values,
             'label': ['Human' if y == 0 else 'AI' for y in y_test]
         })
-        sns.boxplot(data=plot_data, x='label', y='value', ax=ax,
-                    palette={'Human': '#2196F3', 'AI': '#F44336'}, showfliers=False)
+        sns.violinplot(data=plot_data, x='label', y='value', ax=ax,
+                       palette={'Human': '#2196F3', 'AI': '#F44336'}, cut=0, inner='quartile')
         ax.set_title(feat, fontsize=12, fontweight='bold')
         ax.set_xlabel('')
         ax.set_ylabel('')
-    plt.suptitle('RAID: Top Model-Free Features — Human vs AI Boxplot', fontsize=14, y=1.01)
+    plt.suptitle('RAID: Top Model-Free Features — Human vs AI', fontsize=14, y=1.01)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_single_feature_boxplot.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -125,7 +125,7 @@ def plot_single_feature_boxplot(X_test, y_test, stats_df):
 
 
 def plot_model_based_boxplot(X_test, y_test, stats_df):
-    """Boxplots for top Model-Based features (emb_pca + perplexity)."""
+    """Violin plots for top Model-Based features (emb_pca + perplexity)."""
     mb_df = stats_df[stats_df['feature'].str.startswith(('emb_pca_', 'gpt2_'))].reset_index(drop=True)
     top6 = mb_df.head(6)['feature'].values
     fig, axes = plt.subplots(2, 3, figsize=(15, 8))
@@ -134,12 +134,12 @@ def plot_model_based_boxplot(X_test, y_test, stats_df):
             'value': X_test[feat].values,
             'label': ['Human' if y == 0 else 'AI' for y in y_test]
         })
-        sns.boxplot(data=plot_data, x='label', y='value', ax=ax,
-                    palette={'Human': '#2196F3', 'AI': '#FF9800'}, showfliers=False)
+        sns.violinplot(data=plot_data, x='label', y='value', ax=ax,
+                       palette={'Human': '#2196F3', 'AI': '#FF9800'}, cut=0, inner='quartile')
         ax.set_title(feat, fontsize=12, fontweight='bold')
         ax.set_xlabel('')
         ax.set_ylabel('')
-    plt.suptitle('RAID: Top Model-Based Features — Human vs AI Boxplot', fontsize=14, y=1.01)
+    plt.suptitle('RAID: Top Model-Based Features — Human vs AI', fontsize=14, y=1.01)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_model_based_boxplot.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -147,7 +147,7 @@ def plot_model_based_boxplot(X_test, y_test, stats_df):
 
 
 def plot_token_boxplot(X_tok_test, y_test):
-    """Boxplots for top-6 token features."""
+    """Violin plots for top-6 token features."""
     from run_raid_analysis import load_token_features
     # Compute AUC for each token feature
     records = []
@@ -168,12 +168,12 @@ def plot_token_boxplot(X_tok_test, y_test):
             'value': X_tok_test[feat].values,
             'label': ['Human' if y == 0 else 'AI' for y in y_test]
         })
-        sns.boxplot(data=plot_data, x='label', y='value', ax=ax,
-                    palette={'Human': '#2196F3', 'AI': '#F44336'}, showfliers=False)
+        sns.violinplot(data=plot_data, x='label', y='value', ax=ax,
+                       palette={'Human': '#2196F3', 'AI': '#F44336'}, cut=0, inner='quartile')
         ax.set_title(feat, fontsize=12, fontweight='bold')
         ax.set_xlabel('')
         ax.set_ylabel('')
-    plt.suptitle('RAID: Top Token Features — Human vs AI Boxplot', fontsize=14, y=1.01)
+    plt.suptitle('RAID: Top Token Features — Human vs AI', fontsize=14, y=1.01)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_token_boxplot.png', dpi=150, bbox_inches='tight')
     plt.close()
