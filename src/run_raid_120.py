@@ -1,8 +1,8 @@
 """
-RAID — 120 Combined Features Analysis
-Merges 90 handcrafted + 30 token probability features, then runs:
+RAID — 118 Combined Features Analysis
+Merges 88 handcrafted + 30 token probability features, then runs:
   1. XGBoost / LR / RF comparison (120 vs 90 vs 30)
-  2. SHAP summary + dependence (120 combined)
+  2. SHAP summary + dependence (118 combined)
   3. Feature group ablation (11 groups now)
   4. Per-generator accuracy improvement
   5. Cross-dataset validation (HC3, SemEval, TuringBench, Pile)
@@ -36,7 +36,7 @@ plt.rcParams.update({'font.size': 11, 'figure.dpi': 150})
 
 
 def load_combined():
-    """Load 90 handcrafted + 30 token features, merge, return aligned data."""
+    """Load 88 handcrafted + 30 token features, merge, return aligned data."""
     train_df, test_df, X_tr_90, X_te_90 = load_features_and_split()
     tok_tr, tok_te = load_token_features()
 
@@ -65,11 +65,11 @@ def run_method_comparison(X_tr, X_te, y_tr, y_te, X_tr_90, X_te_90, tok_tr, tok_
     """Compare 120 vs 90 vs 30 features across 3 classifiers."""
     results = []
     configs = [
-        ('XGBoost', '120 combined', X_tr, X_te),
-        ('XGBoost', '90 handcrafted', X_tr_90, X_te_90),
+        ('XGBoost', '118 combined', X_tr, X_te),
+        ('XGBoost', '88 handcrafted', X_tr_90, X_te_90),
         ('XGBoost', '30 token', tok_tr, tok_te),
-        ('LR', '120 combined', X_tr, X_te),
-        ('RF', '120 combined', X_tr, X_te),
+        ('LR', '118 combined', X_tr, X_te),
+        ('RF', '118 combined', X_tr, X_te),
     ]
     clfs = {}
     for clf_name, feat_name, Xtr, Xte in configs:
@@ -131,7 +131,7 @@ def plot_comparison_bar(results_df):
     for i, v in enumerate(results_df['Accuracy'].values):
         ax.text(v + 0.0005, len(results_df)-1-i, f'{v:.4f}', va='center', fontsize=9)
 
-    plt.suptitle('RAID: 120 Combined vs 90 Handcrafted vs 30 Token Features', fontsize=13, y=1.02)
+    plt.suptitle('RAID: 118 Combined vs 88 Handcrafted vs 30 Token Features', fontsize=13, y=1.02)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_120_comparison.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -139,7 +139,7 @@ def plot_comparison_bar(results_df):
 
 
 def plot_shap_120(clf, X_te):
-    """SHAP summary for 120 combined features."""
+    """SHAP summary for 118 combined features."""
     explainer = shap.TreeExplainer(clf)
     n = min(3000, len(X_te))
     X_shap = X_te.iloc[:n]
@@ -148,7 +148,7 @@ def plot_shap_120(clf, X_te):
     # Summary
     fig = plt.figure(figsize=(10, 12))
     shap.summary_plot(sv, X_shap, max_display=30, show=False)
-    plt.title('RAID: SHAP Feature Importance (120 Combined Features, Top 30)', fontsize=12)
+    plt.title('RAID: SHAP Feature Importance (118 Combined Features, Top 30)', fontsize=12)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_120_shap_summary.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -162,7 +162,7 @@ def plot_shap_120(clf, X_te):
         shap.dependence_plot(fi, sv, X_shap, ax=ax, show=False)
         ax.set_xlabel(X_shap.columns[fi], fontsize=10)
         ax.set_ylabel('SHAP value', fontsize=10)
-    plt.suptitle('RAID: SHAP Dependence (120 Combined, Top 6)', fontsize=13, y=1.01)
+    plt.suptitle('RAID: SHAP Dependence (118 Combined, Top 6)', fontsize=13, y=1.01)
     plt.tight_layout()
     plt.savefig(FIG_DIR / 'raid_120_shap_dependence.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -246,12 +246,12 @@ def plot_per_generator_improvement(test_df, y_te, pred_90, pred_120):
     fig, ax = plt.subplots(figsize=(10, 6))
     x = np.arange(len(df))
     w = 0.35
-    ax.bar(x - w/2, df['Acc_90'], w, label='90 handcrafted', color='#2196F3', alpha=0.8)
-    ax.bar(x + w/2, df['Acc_120'], w, label='120 combined', color='#F44336', alpha=0.8)
+    ax.bar(x - w/2, df['Acc_90'], w, label='88 handcrafted', color='#2196F3', alpha=0.8)
+    ax.bar(x + w/2, df['Acc_120'], w, label='118 combined', color='#F44336', alpha=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels(df['Generator'], rotation=45, ha='right', fontsize=9)
     ax.set_ylabel('Accuracy')
-    ax.set_title('RAID: Per-Generator Detection — 90 vs 120 Features')
+    ax.set_title('RAID: Per-Generator Detection — 88 vs 118 Features')
     ax.set_ylim(0.3, 1.05)
     ax.legend()
     plt.tight_layout()
@@ -262,7 +262,7 @@ def plot_per_generator_improvement(test_df, y_te, pred_90, pred_120):
 
 
 def run_cross_dataset_120():
-    """Run 120 combined features on HC3, SemEval, TuringBench, Pile."""
+    """Run 118 combined features on HC3, SemEval, TuringBench, Pile."""
     results = []
 
     # HC3
@@ -406,12 +406,12 @@ def run_cross_dataset_120():
     fig, ax = plt.subplots(figsize=(10, 5))
     x = np.arange(len(df))
     w = 0.35
-    ax.bar(x - w/2, df['AUC_90'], w, label='90 handcrafted', color='#2196F3', alpha=0.8)
-    ax.bar(x + w/2, df['AUC_120'], w, label='120 combined', color='#F44336', alpha=0.8)
+    ax.bar(x - w/2, df['AUC_90'], w, label='88 handcrafted', color='#2196F3', alpha=0.8)
+    ax.bar(x + w/2, df['AUC_120'], w, label='118 combined', color='#F44336', alpha=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels(df['Dataset'], rotation=15, ha='right')
     ax.set_ylabel('AUC')
-    ax.set_title('Cross-Dataset: 90 Handcrafted vs 120 Combined')
+    ax.set_title('Cross-Dataset: 88 Handcrafted vs 118 Combined')
     ax.set_ylim(0.5, 1.05)
     ax.legend()
     for i, (a90, a120) in enumerate(zip(df['AUC_90'], df['AUC_120'])):
@@ -426,7 +426,7 @@ def run_cross_dataset_120():
 
 def main():
     print("=" * 60)
-    print("RAID — 120 Combined Features Analysis")
+    print("RAID — 118 Combined Features Analysis")
     print("=" * 60)
 
     print("\n[1/6] Loading data...")
@@ -441,8 +441,8 @@ def main():
     plot_comparison_bar(results_df)
 
     print("\n[3/6] SHAP analysis (120 features)...")
-    clf_120 = clfs['XGBoost_120 combined'][0]
-    pred_120 = clfs['XGBoost_120 combined'][2]
+    clf_120 = clfs['XGBoost_118 combined'][0]
+    pred_120 = clfs['XGBoost_118 combined'][2]
     plot_shap_120(clf_120, X_te)
 
     print("\n[4/6] 11-group ablation...")
@@ -450,8 +450,8 @@ def main():
 
     print("\n[5/6] Per-generator improvement...")
     # Get 90-feature predictions
-    clf_90 = clfs['XGBoost_90 handcrafted'][0]
-    pred_90 = clfs['XGBoost_90 handcrafted'][2]
+    clf_90 = clfs['XGBoost_88 handcrafted'][0]
+    pred_90 = clfs['XGBoost_88 handcrafted'][2]
     gen_df = plot_per_generator_improvement(test_df, y_te, pred_90, pred_120)
 
     print("\n[6/6] Cross-dataset validation...")
@@ -462,7 +462,7 @@ def main():
     print("SUMMARY")
     print("=" * 60)
     print(f"\n  RAID XGBoost (90 feat):  AUC=0.9951  Acc=0.9714")
-    r120 = results_df[results_df['Features'] == '120 combined']
+    r120 = results_df[results_df['Features'] == '118 combined']
     r120 = r120[r120['Classifier'] == 'XGBoost'].iloc[0]
     print(f"  RAID XGBoost (120 feat): AUC={r120['AUC']:.4f}  Acc={r120['Accuracy']:.4f}")
     print(f"  Improvement:             AUC +{r120['AUC']-0.9951:.4f}  Acc +{r120['Accuracy']-0.9714:.4f}")
