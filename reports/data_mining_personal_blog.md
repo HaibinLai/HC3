@@ -100,7 +100,7 @@ A second line treats the hidden states as a feature space to be probed or cluste
 The most accessible white-box signal is the output distribution. Following standard uncertainty estimation for language generation [5], a simple token-level measure is predictive entropy
 
 $$
-H_t=-\sum_{v\in V}p(v\mid x,y_{<t})\log p(v\mid x,y_{<t}),
+H_t=-\sum_{v\in V} p(v \mid x, y_{\lt t}) \log p(v \mid x, y_{\lt t}),
 $$
 
 where $V$ is the vocabulary. Rising entropy near important entity tokens suggests the model is uncertain about the corresponding fact. Varshney et al. use such low-confidence signals to detect and then mitigate hallucinations during generation, validating low-probability spans before the error propagates [10]. Because long sequences accumulate more low-probability terms, length-normalized log-probability is commonly used so that comparisons across spans of different length remain fair. Recent work refines this raw uncertainty: Semantic Energy aggregates the energy of the output distribution over semantically equivalent answers, separating confident errors from harmless lexical variation better than plain entropy [29], and a Fast Fourier Transform of the per-layer probability signals along the token axis exposes periodic patterns that distinguish faithful from hallucinated spans [30].
@@ -110,7 +110,7 @@ where $V$ is the vocabulary. Rising entropy near important entity tokens suggest
 The three feature families above can be unified through a common data-mining pattern. Each sentence (or atomic span) is represented by a multi-level feature vector that concatenates attention statistics, hidden-state summaries, and entropy or confidence values:
 
 $$
-\mathbf{z}_s=\big[\,\overline{\mathrm{LR}}_s,\; H^{\max}_s,\; \mathrm{EigenScore}_s,\; \mathrm{conf}^{\mathrm{ent}}_s,\;\ldots\,\big].
+\mathbf{z}_s=\big[\,\overline{\mathrm{LR}}_s,\; H^{\max}_s,\; \operatorname{EigenScore}_s,\; \operatorname{conf}^{\operatorname{ent}}_s,\;\ldots\,\big].
 $$
 
 Treating most generated sentences as "normal," hallucinated spans appear as outliers in this feature space. Unsupervised detectors such as isolation forest, local outlier factor, or density-based clustering can then score and rank spans, while a lightweight supervised classifier can be trained when labels are available. This view directly answers the localization requirement of Challenge 3.3: instead of one passage-level score, the detector returns the precise sentence or token where the internal signals look abnormal, so a local error is no longer diluted by the overall fluency of the passage. Compared with purely black-box methods, white-box mining offers finer localization and needs only a single forward pass, at the cost of requiring model access and careful feature selection.
