@@ -82,7 +82,11 @@ A survey of hallucination detection groups white-box features into five types: h
 Attention weights directly record where the model looks when generating each token. The central hypothesis, formalized by Lookback Lens, is that contextual hallucination is related to how much an LLM attends to the provided context versus its own previously generated tokens [15]. Let $a_{t,i}^{(l,h)}$ be the attention weight from the token generated at step $t$ to position $i$ in attention head $h$ of layer $l$. According to Lookback Lens [15], splitting the positions into the context span $C$ and the already-generated span $G$, the lookback ratio of one head is defined as
 
 ```katex
-\mathrm{LR}_t^{(l,h)}=\frac{\sum_{i\in C}a_{t,i}^{(l,h)}}{\sum_{i\in C}a_{t,i}^{(l,h)}+\sum_{j\in G}a_{t,j}^{(l,h)}}.
+\displaystyle
+\mathrm{LR}_t^{(l,h)}
+=
+\dfrac{\displaystyle\sum_{i\in C} a_{t,i}^{(l,h)}}
+{\displaystyle\sum_{i\in C} a_{t,i}^{(l,h)}+\displaystyle\sum_{j\in G} a_{t,j}^{(l,h)}}.
 ```
 
 Stacking $\mathrm{LR}_t^{(l,h)}$ over all layers and heads gives a feature vector for token $t$; averaging over a span gives a sentence-level feature. A low ratio means the model is "talking to itself" instead of grounding on evidence, which signals higher hallucination risk. Notably, a simple linear classifier on lookback-ratio features matches a much richer hidden-state detector and even transfers from a 7B model to a 13B model without retraining [15].
