@@ -1,4 +1,4 @@
-# HC3 AI Generated Text Detection
+# AI Generated Text Detection
 
 方向一：AI 生成文本的特征挖掘与检测
 
